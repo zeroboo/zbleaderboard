@@ -67,12 +67,14 @@ public class LeaderboardService {
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.INFO))
-                    .childHandler(new LeaderboardServiceInitializer(sslCtx, MAX_CONTENT_LENGTH));
+                    .childHandler(new LeaderboardServiceInitializer(sslCtx, MAX_CONTENT_LENGTH, jedisPool, config.getRedisLeaderboardKey()));
 
             Channel ch = b.bind(InetAddress.getByName(this.config.getApiHost()),  this.config.getApiPort()).sync().channel();
 
-            logger.info("initNetty: done, web service started on {}" +
-                    (this.config.hasSSL() ? "https" : "http") + this.config.getApiHost() + this.config.getApiPort());
+            logger.info("initNetty: done, web service started on {}:{}"
+                , this.config.hasSSL() ? "https" : "http"
+                , this.config.getApiHost() + this.config.getApiPort()
+            );
         }
         catch (IOException ex){
             logger.error("initNetty: failed!");

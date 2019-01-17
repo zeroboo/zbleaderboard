@@ -9,12 +9,30 @@ import redis.clients.jedis.JedisPoolConfig;
 public class LeaderboardServiceConfig {
     private static final String EMPTY_STRING = "";
     private static final int NETTY_WORKER_THREAD = 8;
+    private static final String DEFAULT_LEADERBOARD_KEY = "zbleaderboard";
+
+    /***
+     * Api endpoint's host
+     */
     String apiHost;
+    /***
+     * Api endpoint's port
+     */
     int apiPort;
-    String redisHost;
-    boolean ssl = false;
-    GenericObjectPoolConfig jedisPool;
+
+    /**
+     * Workers thread of netty.
+     * Default is 8
+     * */
     int nettyWorkerThread;
+
+    ///For redis
+    String redisHost;
+    String redisLeaderboardKey;
+    boolean ssl = false;
+    JedisPoolConfig jedisPool;
+
+
 
     public LeaderboardServiceConfig()
     {
@@ -28,6 +46,7 @@ public class LeaderboardServiceConfig {
         this.jedisPool = new JedisPoolConfig();
         this.ssl = ssl;
         this.nettyWorkerThread = NETTY_WORKER_THREAD;
+        this.redisLeaderboardKey = DEFAULT_LEADERBOARD_KEY;
     }
 
     public String getApiHost() {
@@ -58,5 +77,9 @@ public class LeaderboardServiceConfig {
 
     public GenericObjectPoolConfig getJedisPool() {
         return jedisPool;
+    }
+
+    public String getRedisLeaderboardKey() {
+        return redisLeaderboardKey;
     }
 }

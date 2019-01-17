@@ -20,14 +20,20 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.ssl.SslContext;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 public class LeaderboardServiceInitializer extends ChannelInitializer<SocketChannel> {
 
     private final SslContext sslCtx;
     int maxContentLength = 0;
-    public LeaderboardServiceInitializer(SslContext sslCtx, int maxContentLength) {
+    JedisPool jedisPool;
+    String leaderboardKey = null;
+    public LeaderboardServiceInitializer(SslContext sslCtx, int maxContentLength, JedisPool jedisPool, String leaderboardKey) {
         this.sslCtx = sslCtx;
         this.maxContentLength = maxContentLength;
+        this.jedisPool = jedisPool;
+        this.leaderboardKey = leaderboardKey;
     }
 
     @Override
@@ -37,12 +43,10 @@ public class LeaderboardServiceInitializer extends ChannelInitializer<SocketChan
             p.addLast(sslCtx.newHandler(ch.alloc()));
         }
         p.addLast(new HttpRequestDecoder());
-
         p.addLast(new HttpResponseEncoder());
         p.addLast(new HttpObjectAggregator(maxContentLength));
         p.addLast(new HttpServerExpectContinueHandler());
 
-
-        p.addLast(new LeaderboardServiceHandler());
+        p.addLast(new LeaderboardServiceHandler(jedisPool, leaderboardKey));
     }
 }
