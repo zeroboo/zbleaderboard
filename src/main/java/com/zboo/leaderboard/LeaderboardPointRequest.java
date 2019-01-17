@@ -1,6 +1,15 @@
 package com.zboo.leaderboard;
 
-public class LeaderboardMessage {
+class LeaderboardPointRequest{
+    static final String EMPTY_STRING = "";
     String username;
-    String
+    long points;
+
+    public LeaderboardPointRequest()
+    {
+        username = EMPTY_STRING;
+        points = 0;
+    }
+
+
 }

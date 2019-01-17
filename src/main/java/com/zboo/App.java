@@ -4,6 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.zboo.leaderboard.LeaderboardService;
 
+import javax.net.ssl.SSLException;
+import java.security.cert.CertificateException;
+
 
 /**
  * Hello world!
@@ -17,6 +20,15 @@ public class App
 
         logger.info( "Starting!" );
         final LeaderboardService service = new LeaderboardService();
+        try {
+            service.start();
+        } catch (CertificateException e) {
+            e.printStackTrace();
+        } catch (SSLException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         Runtime.getRuntime().addShutdownHook(new Thread()
         {
             public void run()
