@@ -18,7 +18,6 @@ package com.zboo.leaderboard;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
-import com.google.gson.internal.LinkedTreeMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -33,7 +32,6 @@ import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
-import java.io.IOException;
 import java.nio.charset.Charset;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
@@ -45,6 +43,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<HttpO
     static final String DEFAULT_BAD_REQUEST_MESSAGE = "Invalid message";
     static final String EMPTY_STRING = "";
     static final String NOT_SUPPORTED = "Not supported";
+    static final String CONTENT_TYPE_JSON = "application/json";
     static final Charset DEFAULT_CHARSET = Charset.forName("UTF-8");
 
     static Logger handlerLogger = LoggerFactory.getLogger("LeaderboardHandlerLogger");
@@ -59,6 +58,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<HttpO
      */
     JedisPool jedisPool;
     String leaderboardKey;
+
     public LeaderboardServiceHandler(JedisPool jedisPool, String leaderboardKey) {
         super();
         this.gsonParser = new GsonBuilder().create();
@@ -99,7 +99,6 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<HttpO
     }
 
 
-
     ChannelFutureListener LOG_HANDLER = new ChannelFutureListener() {
         public void operationComplete(ChannelFuture future) {
             handlerLogger.debug("Channel closed: {}", future.channel().remoteAddress());
@@ -114,9 +113,8 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<HttpO
         buf.writeBytes(NOT_SUPPORTED.getBytes(DEFAULT_CHARSET));
 
         FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST, buf);
-        response.headers().set(CONTENT_TYPE, "application/json");
+        response.headers().set(CONTENT_TYPE, CONTENT_TYPE_JSON);
         response.headers().setInt(CONTENT_LENGTH, response.content().readableBytes());
-
         ctx.write(response).addListener(ChannelFutureListener.CLOSE).addListener(LOG_HANDLER);
     }
 
@@ -128,7 +126,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<HttpO
         buf.writeBytes(message.getBytes(DEFAULT_CHARSET));
 
         FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST, buf);
-        response.headers().set(CONTENT_TYPE, "application/json");
+        response.headers().set(CONTENT_TYPE, CONTENT_TYPE_JSON);
         response.headers().setInt(CONTENT_LENGTH, response.content().readableBytes());
 
         ctx.write(response).addListener(ChannelFutureListener.CLOSE).addListener(LOG_HANDLER);
@@ -149,6 +147,10 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<HttpO
 
     public static boolean isUsernameValid(String username) {
         return username != null && !username.isEmpty() && username.matches(VALID_USERNAME_MATCHER);
+    }
+
+    public static boolean isUserPointValid(long value) {
+        return value >= 0;
     }
 
     public void handlePoint(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
@@ -176,9 +178,8 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<HttpO
                 }
             }
 
-
             if (validRequest) {
-                ///Query redis for user points
+                ///Query redis for user newPoint
                 Jedis jedis = this.jedisPool.getResource();
                 long point = jedis.zscore(this.leaderboardKey, request.username).longValue();
 
@@ -205,13 +206,92 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<HttpO
                 responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
                 logger.info("handlePoint.GET: invalidRequest");
             }
-
         } else if (msg.method() == HttpMethod.PUT) {
+            ///Create or update newPoint on server
+            handlePutPoint(ctx, msg, keepAlive);
 
         }
 
         if (logger.isDebugEnabled()) {
             logger.debug("handlePoint.finish: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
+        }
+    }
+
+    /**
+     * Handler for /point PUT endpoint
+     * Create or update user point to leaderboard
+     */
+    public void handlePutPoint(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("handlePutPoint.start: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
+        }
+
+        boolean validRequest = false;
+        LeaderboardPointRequest request = null;
+        ///Validating request:
+        String content = msg.content().toString(DEFAULT_CHARSET);
+        validRequest = false;
+        try {
+
+            request = gsonParser.fromJson(content, LeaderboardPointRequest.class);
+            if (isUsernameValid(request.username)) {
+                if (isUserPointValid(request.newPoint)) {
+                    validRequest = true;
+                } else {
+                    logger.info("handlePutPoint: invalid point, submit={}", request.newPoint);
+                }
+            } else {
+                logger.info("handlePutPoint: invalid username, submit={}", request.username);
+            }
+        } catch (JsonSyntaxException e) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("handlePutPoint: content is not json, {}", content);
+            }
+        }
+
+        if (validRequest) {
+            ///Query redis for user newPoint
+            Jedis jedis = this.jedisPool.getResource();
+            long currentPoint = jedis.zadd(this.leaderboardKey, request.newPoint, request.username).longValue();
+            jedis.close();
+
+            LeaderboardPointResponse resp = LeaderboardResponse.createLeaderboardPointResponse();
+            resp.setSuccess(true);
+            resp.setUsername(request.username);
+            resp.setCurrentPoint(currentPoint);
+
+            logger.info("handlePutPoint: SUCCESS");
+            responseJson(ctx, keepAlive, resp);
+
+        } else {
+            responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
+            ///logger.info("handlePoint.GET: invalidRequest");
+        }
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("handlePutPoint.finish: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
+        }
+    }
+
+    /***
+     * Return content for valid api request as json.
+     * Aware of client keep-alive.
+     */
+    public void responseJson(ChannelHandlerContext ctx, boolean keepAlive, Object content)
+    {
+        ByteBuf buf = ctx.alloc().buffer();
+        String json = gsonParser.toJson(content);
+        buf.writeBytes(json.getBytes(DEFAULT_CHARSET));
+
+        FullHttpResponse httpResponse = new DefaultFullHttpResponse(HTTP_1_1, OK, buf);
+        httpResponse.headers().set(CONTENT_TYPE, CONTENT_TYPE_JSON);
+        httpResponse.headers().setInt(CONTENT_LENGTH, httpResponse.content().readableBytes());
+
+        if (!keepAlive) {
+            ctx.write(httpResponse).addListener(ChannelFutureListener.CLOSE);
+        } else {
+            httpResponse.headers().set(CONNECTION, KEEP_ALIVE);
+            ctx.write(httpResponse);
         }
     }
 

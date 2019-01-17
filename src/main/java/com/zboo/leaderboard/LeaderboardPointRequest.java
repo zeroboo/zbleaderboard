@@ -3,12 +3,12 @@ package com.zboo.leaderboard;
 class LeaderboardPointRequest{
     static final String EMPTY_STRING = "";
     String username;
-    long points;
+    long newPoint;
 
     public LeaderboardPointRequest()
     {
         username = EMPTY_STRING;
-        points = 0;
+        newPoint = 0;
     }
 
 
