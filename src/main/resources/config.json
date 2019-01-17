@@ -1,0 +1,26 @@
+{
+  "apiHost": "",
+  "apiPort": 0,
+  "redisHost": "",
+  "jedisPool": {
+    "maxTotal": 8,
+    "maxIdle": 8,
+    "minIdle": 0,
+    "lifo": true,
+    "fairness": false,
+    "maxWaitMillis": -1,
+    "minEvictableIdleTimeMillis": 60000,
+    "evictorShutdownTimeoutMillis": 10000,
+    "softMinEvictableIdleTimeMillis": -1,
+    "numTestsPerEvictionRun": -1,
+    "evictionPolicyClassName": "org.apache.commons.pool2.impl.DefaultEvictionPolicy",
+    "testOnCreate": false,
+    "testOnBorrow": false,
+    "testOnReturn": false,
+    "testWhileIdle": true,
+    "timeBetweenEvictionRunsMillis": 30000,
+    "blockWhenExhausted": true,
+    "jmxEnabled": true,
+    "jmxNamePrefix": "pool"
+  }
+}
