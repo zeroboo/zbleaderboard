@@ -105,7 +105,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         logger.debug("channelRead0: uri={}", req.uri());
         boolean keepAlive = HttpUtil.isKeepAlive(req);
         if (req.uri().startsWith(ENDPOINT_POINT)) {
-            handlePointGet(ctx, req, keepAlive);
+            handlePoint(ctx, req, keepAlive);
         }
         else if (req.uri().startsWith(ENDPOINT_LOGIN)){
             handleLogin(ctx, req, keepAlive);
@@ -303,17 +303,16 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         boolean validRequest = false;
         LeaderboardRequest request = null;
         String content = msg.content().toString(DEFAULT_CHARSET);
-        if (msg.method() == HttpMethod.GET) {
-
+        if (msg.method() == HttpMethod.POST) {
             ///Validating request:
             validRequest = false;
             try {
                 request = gsonParser.fromJson(content, LeaderboardRequest.class);
                 if(request != null) {
-                    if (isUsernameValid(ownerUser)) {
+                    if (isUsernameValid(request.username)) {
                         validRequest = true;
                     } else {
-                        logger.info("handleLogin: invalid ownerUser, submit={}", ownerUser);
+                        logger.info("handleLogin: invalid ownerUser, submit={}", request.username);
                     }
                 }
                 else
@@ -327,7 +326,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
             }
 
             if (validRequest) {
-                logger.info("handleLogin: SUCCESS");
+
                 LeaderboardLoginResponse resp = LeaderboardMessageFactory.createLeaderboardLoginResponse();
                 resp.setUsername(request.username);
                 resp.setSuccess(true);
@@ -337,7 +336,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
                 this.owner.addNewUser(user);
 
                 responseJson(ctx, keepAlive, resp);
-
+                logger.info("handleLogin: SUCCESS, username={}", request.username);
             } else {
                 responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
                 logger.info("handleLogin: invalidRequest");
@@ -356,62 +355,82 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         }
     }
 
-    public void handlePointGet(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
+    public void handlePoint(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
         if (logger.isDebugEnabled()) {
-            logger.debug("handlePointGet.start: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
+            logger.debug("handlePoint.start: keepAlive={}, remote={}, method={}"
+                    , keepAlive
+                    , ctx.channel().remoteAddress()
+                    , msg.method());
         }
 
-        boolean validRequest = false;
-        LeaderboardPointRequest request = null;
-        String content = msg.content().toString(DEFAULT_CHARSET);
         if (msg.method() == HttpMethod.GET) {
-
-            ///Validating request:
-            validRequest = false;
-            try {
-                request = gsonParser.fromJson(content, LeaderboardPointRequest.class);
-                if (isUsernameValid(request.username)) {
-                    validRequest = true;
-                } else {
-                    logger.info("handlePointGET: invalid ownerUser, submit={}", request.username);
-                }
-            } catch (JsonSyntaxException e) {
-                if (logger.isDebugEnabled()) {
-                    logger.debug("handlePointGET: content is not json, {}", content);
-                }
-            }
-
-            if (validRequest) {
-                ///Query by redis pipeline for user newPoint
-                Jedis jedis = this.jedisPool.getResource();
-                Pipeline pipeline = jedis.pipelined();
-                Response<Double> currentPointResponse = pipeline.zscore(this.leaderboardKey, request.username);
-                Response<Long> currentRankResponse = pipeline.zrank(this.leaderboardKey, request.username);
-                pipeline.sync();
-                jedis.close();
-
-                ///Prepare response
-                LeaderboardPointResponse resp = LeaderboardMessageFactory.createLeaderboardPointResponse();
-                resp.setSuccess(true);
-                resp.setUsername(request.username);
-                resp.setCurrentPoint(currentPointResponse.get().longValue());
-                resp.setCurrentRank(redisRankToUserRank(currentRankResponse.get().longValue()));
-
-                logger.info("handlePointGET: SUCCESS");
-                responseJson(ctx, keepAlive, resp);
-
-            } else {
-                responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
-                logger.info("handlePointGET: invalidRequest");
-            }
+            handlePointGet(ctx, msg, keepAlive);
         } else if (msg.method() == HttpMethod.PUT) {
             ///Create or update newPoint on server
             handlePointPut(ctx, msg, keepAlive);
 
         }
+        else
+        {
+            responseNotSupportAndClose(ctx);
+        }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("handlePointGET.finish: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
+            logger.debug("handlePoint.finish: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
+        }
+    }
+    public void handlePointGet(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
+        boolean validRequest = false;
+
+        validRequest = false;
+        String content = msg.content().toString(DEFAULT_CHARSET);
+
+        ///Get username
+        QueryStringDecoder decoder = new QueryStringDecoder(msg.uri());
+        String username = null;
+        if(decoder.parameters().containsKey(RESPONSE_KEY_USERNAME))
+        {
+            List<String> usernames = decoder.parameters().get(RESPONSE_KEY_USERNAME);
+            if(usernames.size()>0)
+            {
+                username = usernames.get(0);
+            }
+        }
+
+        try {
+            if (isUsernameValid(username)) {
+                validRequest = true;
+            } else {
+                logger.info("handlePointGET: invalid ownerUser, submit={}", username);
+            }
+        } catch (JsonSyntaxException e) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("handlePointGET: content is not json, {}", content);
+            }
+        }
+
+        if (validRequest) {
+            ///Query by redis pipeline for user newPoint
+            Jedis jedis = this.jedisPool.getResource();
+            Pipeline pipeline = jedis.pipelined();
+            Response<Double> currentPointResponse = pipeline.zscore(this.leaderboardKey, username);
+            Response<Long> currentRankResponse = pipeline.zrank(this.leaderboardKey, username);
+            pipeline.sync();
+            jedis.close();
+
+            ///Prepare response
+            LeaderboardPointResponse resp = LeaderboardMessageFactory.createLeaderboardPointResponse();
+            resp.setSuccess(true);
+            resp.setUsername(username);
+            resp.setCurrentPoint(currentPointResponse.get().longValue());
+            resp.setCurrentRank(redisRankToUserRank(currentRankResponse.get().longValue()));
+
+            logger.info("handlePointGET: SUCCESS");
+            responseJson(ctx, keepAlive, resp);
+
+        } else {
+            responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
+            logger.info("handlePointGET: invalidRequest");
         }
     }
     public static int redisRankToUserRank(long value)

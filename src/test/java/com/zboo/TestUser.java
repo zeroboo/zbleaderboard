@@ -18,12 +18,12 @@ import java.util.Set;
 
 import static junit.framework.TestCase.assertEquals;
 
-public class TestAdminUserPoint {
+public class TestUser {
     static final String apiHost = "127.0.0.1";
     static final int apiPort = 8081;
     static LeaderboardService service;
-    static final String TEST_LEADERBOARD_KEY = "test_leaderboard_admin";
-    static final String TEST_LEADERBOARD_COUNTER_KEY = "test_leaderboard_counter_admin";
+    static final String TEST_LEADERBOARD_KEY = "test_leaderboard_user";
+    static final String TEST_LEADERBOARD_COUNTER_KEY = "test_leaderboard_counter_user";
     static Gson gson = new GsonBuilder().create();
     @BeforeClass
     public static void beforeClass()
@@ -35,7 +35,9 @@ public class TestAdminUserPoint {
         service.getConfig().setRedisLeaderboardUpdateCounterKey(TEST_LEADERBOARD_COUNTER_KEY);
         try {
             service.start();
+
             Thread.sleep(3000);
+
             ///Delete old leaderboard
             Jedis jedis = new Jedis(service.getConfig().getRedisHost());
             while(jedis.zcard(TEST_LEADERBOARD_KEY) > 0)
@@ -92,113 +94,16 @@ public class TestAdminUserPoint {
 
     }
 
+
     @Test
-    public void TestDeleteExistedUser_ResponseSuccess()
+    public void TestLoginValid_ResponseSuccess()
     {
         try {
-            String targetURL = String.format("http://%s:%d/adminUserPoint", apiHost, apiPort);
+            String targetURL = String.format("http://%s:%d/login", apiHost, apiPort);
             HttpURLConnection connection = null;
 
             URL url = new URL(targetURL);
-            String content = "{\"username\":\"zeroboo1\", \"admin\":\"admin\"}";
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("DELETE");
-            connection.setRequestProperty("Content-Type",
-                    "application/x-www-form-urlencoded");
-
-            connection.setRequestProperty("Content-Length",
-                    Integer.toString(content.getBytes().length));
-            connection.setRequestProperty("Content-Language", "en-US");
-
-            connection.setUseCaches(false);
-            connection.setDoOutput(true);
-
-            //Send request
-            DataOutputStream wr = new DataOutputStream (
-                    connection.getOutputStream());
-            wr.writeBytes(content);
-            wr.close();
-
-            //Get Response
-            InputStream is = connection.getInputStream();
-            BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-            StringBuilder response = new StringBuilder(); // or StringBuffer if Java version 5+
-            String line;
-            while ((line = rd.readLine()) != null) {
-                response.append(line);
-                response.append('\r');
-            }
-            rd.close();
-            String result = response.toString();
-            LinkedHashMap<String, Object> respData = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
-            System.out.println(result);
-            assertEquals(true, respData.get(LeaderboardServiceHandler.RESPONSE_KEY_SUCCESS));
-            assertEquals("zeroboo1", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
-            assertEquals("admin", respData.get("admin"));
-            assertEquals(true, respData.get("deleted"));
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Test
-    public void TestGetExistedUser_ResponseSuccess()
-    {
-        try {
-            String username = "zeroboo3";
-            String targetURL = String.format("http://%s:%d/adminUserPoint?username=%s", apiHost, apiPort, username);
-            HttpURLConnection connection = null;
-
-            URL url = new URL(targetURL);
-            String content = "{\"username\":\"zeroboo3\", \"admin\":\"admin\"}";
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("GET");
-
-
-            connection.setRequestProperty("Content-Length",
-                    Integer.toString(content.getBytes().length));
-            connection.setRequestProperty("Content-Language", "en-US");
-
-            connection.setUseCaches(false);
-
-
-            //Get Response
-            InputStream is = connection.getInputStream();
-            BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-            StringBuilder response = new StringBuilder(); // or StringBuffer if Java version 5+
-            String line;
-            while ((line = rd.readLine()) != null) {
-                response.append(line);
-                response.append('\r');
-            }
-            rd.close();
-
-            String result = response.toString();
-            LinkedHashMap<String, Object> respData = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
-            System.out.println(result);
-            assertEquals(true, respData.get(LeaderboardServiceHandler.RESPONSE_KEY_SUCCESS));
-            assertEquals("zeroboo3", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
-            assertEquals("3000.0", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_CURRENT_POINT).toString());
-            assertEquals("3.0", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_UPDATE_COUNT).toString());
-
-
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    @Test
-    public void TestWrongMethod_ResponseError()
-    {
-        try {
-            String targetURL = String.format("http://%s:%d/adminUserPoint", apiHost, apiPort);
-            HttpURLConnection connection = null;
-
-            URL url = new URL(targetURL);
-            String content = "{\"username\":\"zeroboo3\", \"admin\":\"admin\"}";
+            String content = "{\"username\":\"zeroboo3\"}";
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type",
@@ -217,40 +122,7 @@ public class TestAdminUserPoint {
             wr.writeBytes(content);
             wr.close();
 
-            //Get Response
-            assertEquals(400, connection.getResponseCode());
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    @Test
-    public void TestDeleteNotExistedUser_ResponseError()
-    {
-        try {
-            String targetURL = String.format("http://%s:%d/adminUserPoint", apiHost, apiPort);
-            HttpURLConnection connection = null;
-
-            URL url = new URL(targetURL);
-            String content = "{\"username\":\"zeroboovoid\", \"admin\":\"admin\"}";
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("DELETE");
-            connection.setRequestProperty("Content-Type",
-                    "application/x-www-form-urlencoded");
-
-            connection.setRequestProperty("Content-Length",
-                    Integer.toString(content.getBytes().length));
-            connection.setRequestProperty("Content-Language", "en-US");
-
-            connection.setUseCaches(false);
-            connection.setDoOutput(true);
-
-            //Send request
-            DataOutputStream wr = new DataOutputStream (
-                    connection.getOutputStream());
-            wr.writeBytes(content);
-            wr.close();
+            assertEquals(200, connection.getResponseCode());
 
             //Get Response
             InputStream is = connection.getInputStream();
@@ -262,35 +134,31 @@ public class TestAdminUserPoint {
                 response.append('\r');
             }
             rd.close();
-            String result = response.toString();
-            LinkedHashMap<String, Object> respData = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
+            String result=response.toString();
             System.out.println(result);
-            assertEquals(true, respData.get(LeaderboardServiceHandler.RESPONSE_KEY_SUCCESS));
-            assertEquals("zeroboovoid", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
-            assertEquals("admin", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_ADMIN));
-            assertEquals(false, respData.get(LeaderboardServiceHandler.RESPONSE_KEY_DELETED));
+            LinkedHashMap<String, Object> resp = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
+            assertEquals("zeroboo3", resp.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
+            assertEquals(true, resp.get(LeaderboardServiceHandler.RESPONSE_KEY_SUCCESS));
 
+            ///Connection
+            assertEquals("keep-alive", connection.getHeaderField("Connection"));
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
     @Test
-    public void TestDeleteExistedUser_DataDeleted()
+    public void TestUpdatePointOnExistedUser_ResponseSuccess()
     {
         try {
-            Jedis jedis = new Jedis(service.getConfig().getRedisHost());
-            String username = "zeroboo2";
-            assertEquals(2000, jedis.zscore(TEST_LEADERBOARD_KEY, username).longValue());
-            assertEquals(2, jedis.hincrBy(TEST_LEADERBOARD_COUNTER_KEY, username, 0).longValue());
-            String targetURL = String.format("http://%s:%d/adminUserPoint", apiHost, apiPort);
+            String targetURL = String.format("http://%s:%d/point", apiHost, apiPort);
             HttpURLConnection connection = null;
 
-
             URL url = new URL(targetURL);
-            String content = "{\"username\":\"zeroboo2\", \"admin\":\"admin\"}";
+            String content = "{\"username\":\"zeroboo3\",\"newPoint\":1000}";
             connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("DELETE");
+            connection.setRequestMethod("PUT");
             connection.setRequestProperty("Content-Type",
                     "application/x-www-form-urlencoded");
 
@@ -307,6 +175,8 @@ public class TestAdminUserPoint {
             wr.writeBytes(content);
             wr.close();
 
+            assertEquals(200, connection.getResponseCode());
+
             //Get Response
             InputStream is = connection.getInputStream();
             BufferedReader rd = new BufferedReader(new InputStreamReader(is));
@@ -317,12 +187,58 @@ public class TestAdminUserPoint {
                 response.append('\r');
             }
             rd.close();
+            String result=response.toString();
+            System.out.println(result);
+            LinkedHashMap<String, Object> resp = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
+            assertEquals("zeroboo3", resp.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
+            assertEquals("1000.0", resp.get("currentPoint").toString());
 
+            ///Connection
+            assertEquals("keep-alive", connection.getHeaderField("Connection"));
 
-            assertEquals(null, jedis.zscore(TEST_LEADERBOARD_KEY, username));
-            assertEquals(null, jedis.hget(TEST_LEADERBOARD_COUNTER_KEY, username));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
-            jedis.close();
+    @Test
+    public void TestGetPointOnExistedUser_ResponseSuccess()
+    {
+        try {
+            String targetURL = String.format("http://%s:%d/point?username=%s", apiHost, apiPort, "zeroboo1");
+            HttpURLConnection connection = null;
+
+            URL url = new URL(targetURL);
+            String content = "{\"username\":\"zeroboo3\",\"newPoint\":1000}";
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("Content-Type",
+                    "application/x-www-form-urlencoded");
+
+            connection.setRequestProperty("Content-Length",
+                    Integer.toString(content.getBytes().length));
+            connection.setRequestProperty("Content-Language", "en-US");
+
+            connection.setUseCaches(false);
+
+            //Get Response
+            InputStream is = connection.getInputStream();
+            BufferedReader rd = new BufferedReader(new InputStreamReader(is));
+            StringBuilder response = new StringBuilder(); // or StringBuffer if Java version 5+
+            String line;
+            while ((line = rd.readLine()) != null) {
+                response.append(line);
+                response.append('\r');
+            }
+            rd.close();
+            String result=response.toString();
+            System.out.println(result);
+            LinkedHashMap<String, Object> resp = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
+            assertEquals("zeroboo1", resp.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
+            assertEquals("1000.0", resp.get("currentPoint").toString());
+
+            ///Connection
+            assertEquals("keep-alive", connection.getHeaderField("Connection"));
 
         } catch (IOException e) {
             e.printStackTrace();
