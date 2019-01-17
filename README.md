@@ -40,14 +40,23 @@ Below is default config:
 ```
 ## Features
 1. Add/update a username and a score: 
-2. Get notified when other users update their scores 
+  User update point by sending a PUT request to endpoint host:port/point, with content as json
+    eg: {"username":"zeroboo3", "newPoint":1000}
+2. Get notified when other users update their scores:
+  User login by a sending a POST request to endpoint host:port/login, with content as json: 
+    eg: {"username":"zeroboo3"}
+  After that user will be record by server and the connection will be kept for notification when a user update his/her scores.
+
 3. Admin able to see how many times a user updated their score. 
+  Admin can get user score and stats of this user by sending GET request to endpoint host:port/adminUserPoint?username=<targetUsername>
 4. Admin can delete a username and score 
+  Admin delete a user point by sending a DELETE request to endpoint host:port/adminUserPoint with body as json:
+    eg: {"username":"zeroboo1", "admin":"admin"}
 
 ## Assumtions
-
 - Authentication was not implemented 
 - Clients are trusted every points they send, no verification performed 
+- Statistics like "how many users updated their score in a time window" should be obtaining by processing server log (say, through elasticstack).
 
-## TODO
+
 
