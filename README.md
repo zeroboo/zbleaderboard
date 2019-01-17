@@ -12,7 +12,7 @@ Jar file will be place on target folder:
   - zbleaderboard-<version>.jar 
   - zbleaderboard-<version>-full.jar: jar with dependencies 
 
-3. Install redis: [https://redis.io]
+3. Install & start redis: [https://redis.io]
 
 4. Run service:
 ```
@@ -21,7 +21,7 @@ java -jar zbleaderboard-<version>.jar config.json
 
 
 ## Configuration
-Edit config.json file for service host and redis host.
+Edit config.json file for service endpoint and redis connection.
 Below is default config:
 ```json
 {
@@ -39,8 +39,15 @@ Below is default config:
 }
 ```
 ## Features
+1. Add/update a username and a score: 
+2. Get notified when other users update their scores 
+3. Admin able to see how many times a user updated their score. 
+4. Admin can delete a username and score 
 
 ## Assumtions
+
+- Authentication was not implemented 
+- Clients are trusted every points they send, no verification performed 
 
 ## TODO
 
