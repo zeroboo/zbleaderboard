@@ -1,4 +1,4 @@
-package com.zboo.leaderboard;
+package com.zboo.leaderboard.message;
 
 public class LeaderboardResponse {
     static final String DEFAULT_VERSION = "1";

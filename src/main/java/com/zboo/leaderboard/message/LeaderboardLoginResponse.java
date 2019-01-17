@@ -1,7 +1,7 @@
-package com.zboo.leaderboard;
+package com.zboo.leaderboard.message;
 
 public class LeaderboardLoginResponse extends LeaderboardResponse {
-    String token = EMPTY_STRING;
+    public String token = EMPTY_STRING;
 
     public LeaderboardLoginResponse()
     {

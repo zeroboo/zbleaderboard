@@ -2,8 +2,8 @@ package com.zboo.leaderboard;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.zboo.leaderboard.message.LeaderboardPointNotification;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -13,8 +13,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static com.zboo.leaderboard.LeaderboardServiceHandler.CONTENT_TYPE_JSON;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
@@ -83,7 +81,7 @@ public class NofityUpdatePointRunner implements Runnable {
             ctx.writeAndFlush(httpResponse);
             sent = true;
         } else {
-            logger.info("sentFail: username={}");
+            logger.info("sentFail: ownerUser={}");
         }
         return sent;
     }

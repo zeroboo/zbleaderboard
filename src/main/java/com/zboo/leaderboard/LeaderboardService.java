@@ -2,6 +2,7 @@ package com.zboo.leaderboard;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.zboo.leaderboard.message.LeaderboardPointNotification;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
@@ -54,7 +55,7 @@ public class LeaderboardService {
 
         this.notifyServiceScheduler.scheduleAtFixedRate(this.notifyRunner, 0, 10, TimeUnit.SECONDS);
         this.charset = Charset.forName("UTF-8");
-        logger.info("Constructor: {}", gson.toJson(config));
+
     }
 
 
@@ -63,6 +64,7 @@ public class LeaderboardService {
     static final int MAX_CONTENT_LENGTH = 1024 * 1024;
 
     public void start() throws CertificateException, SSLException, InterruptedException {
+        logger.info("Start with config: {}", gson.toJson(config));
         this.initJedis();
         this.initNetty();
     }
@@ -102,7 +104,22 @@ public class LeaderboardService {
     }
 
     public void initJedis() {
-        jedisPool = new JedisPool(this.config.jedisPool, this.config.redisHost);
+        if(config.getRedisPassword()!=null && !config.getRedisPassword().isEmpty())
+        {
+            jedisPool = new JedisPool(this.config.jedisPool
+                    , this.config.getRedisHost()
+                    , this.config.getRedisPort()
+                    , this.config.getRedisTimeoutSecond()
+                    , this.config.getRedisPassword());
+        }
+        else
+        {
+            jedisPool = new JedisPool(this.config.jedisPool
+                    , this.config.getRedisHost()
+                    , this.config.getRedisPort()
+                    , this.config.getRedisTimeoutSecond()
+                    );
+        }
         logger.info("initJedis: host={}, config={}", this.config.getRedisHost(), this.config.getJedisPool().toString());
         logger.info("initJedis: leaderboardKey={}", this.config.getRedisLeaderboardKey());
 
@@ -138,12 +155,12 @@ public class LeaderboardService {
 
     public void addNewUser(LeaderboardUser user) {
         this.onlineUsers.put(user.getUsername(), user);
-        logger.info("newUser: username={}, remote={}, online={}", user.getUsername(), user.getContext().channel().remoteAddress(), this.onlineUsers.size());
+        logger.info("newUser: ownerUser={}, remote={}, online={}", user.getUsername(), user.getContext().channel().remoteAddress(), this.onlineUsers.size());
     }
 
     public void removeUser(String username) {
         LeaderboardUser user = this.onlineUsers.remove(username);
-        logger.info("removeUser: username={}, removed={}, online={}"
+        logger.info("removeUser: ownerUser={}, removed={}, online={}"
                 , username
                 , user!=null
                 , this.onlineUsers.size());
@@ -153,7 +170,7 @@ public class LeaderboardService {
     {
         LeaderboardPointNotification noti = new LeaderboardPointNotification(username, currentPoint, currentRank);
         this.updatedPoints.put(username, noti);
-        logger.info("onHandleNewPointUpdated: username={}, currentPoint={}, currentRank={}, onlineUsers={}, updatedPoints={}"
+        logger.info("onHandleNewPointUpdated: ownerUser={}, currentPoint={}, currentRank={}, onlineUsers={}, updatedPoints={}"
                 , username
                 , currentPoint
                 , currentRank

@@ -1,10 +1,10 @@
-package com.zboo.leaderboard;
+package com.zboo.leaderboard.message;
 
 public class LeaderboardRequest {
     static final String EMPTY_STRING = "";
-    String username = EMPTY_STRING;
-    String password = EMPTY_STRING;
-    String token = EMPTY_STRING;
+    public String username = EMPTY_STRING;
+    public String password = EMPTY_STRING;
+    public String token = EMPTY_STRING;
 
     public LeaderboardRequest()
     {

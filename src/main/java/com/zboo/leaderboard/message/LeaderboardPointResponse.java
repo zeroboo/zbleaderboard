@@ -1,4 +1,4 @@
-package com.zboo.leaderboard;
+package com.zboo.leaderboard.message;
 
 public class LeaderboardPointResponse extends LeaderboardResponse{
     long currentPoint = 0;

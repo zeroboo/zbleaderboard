@@ -58,6 +58,11 @@
 		<type>jar</type>
 		<scope>compile</scope>
 	</dependency>
+	<dependency>
+		<groupId>com.auth0</groupId>
+	 	<artifactId>java-jwt</artifactId>
+		<version>3.5.0</version>
+	</dependency>
   </dependencies>
 
 	<build>
@@ -116,6 +121,7 @@
 									<directory>${basedir}/src/main/resources</directory>
 									<includes>
 										<include>logback.xml</include>
+										<include>config.json</include>
 									</includes>
 								</resource>
 							</resources>

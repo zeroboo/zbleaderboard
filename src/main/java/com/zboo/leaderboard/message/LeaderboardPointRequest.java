@@ -1,7 +1,7 @@
-package com.zboo.leaderboard;
+package com.zboo.leaderboard.message;
 
-class LeaderboardPointRequest extends LeaderboardRequest{
-    long newPoint;
+public class LeaderboardPointRequest extends LeaderboardRequest{
+    public long newPoint;
     public LeaderboardPointRequest()
     {
         super();

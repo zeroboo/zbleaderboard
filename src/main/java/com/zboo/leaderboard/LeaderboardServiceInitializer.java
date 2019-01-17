@@ -20,8 +20,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.ssl.SslContext;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
 
 public class LeaderboardServiceInitializer extends ChannelInitializer<SocketChannel> {
 

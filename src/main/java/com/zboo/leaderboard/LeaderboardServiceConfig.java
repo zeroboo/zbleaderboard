@@ -7,10 +7,14 @@ import redis.clients.jedis.JedisPoolConfig;
  * */
 
 public class LeaderboardServiceConfig {
-    private static final String EMPTY_STRING = "";
-    private static final int NETTY_WORKER_THREAD = 8;
-    private static final String DEFAULT_LEADERBOARD_KEY = "zbleaderboard";
-
+    public static final String EMPTY_STRING = "";
+    public static final int NETTY_WORKER_THREAD = 8;
+    public static final String DEFAULT_LEADERBOARD_KEY = "zbleaderboard";
+    public static final String DEFAULT_LEADERBOARD_UPDATE_COUNTER = "zbleaderboard_update_counter";
+    public static final int DEFAULT_REDIS_PORT = 6379;
+    public static final int DEFAULT_API_PORT = 8080;
+    public static final String DEFAULT_REDIS_PASSWORD = "";
+    public static final int DEFAULT_REDIS_TIMEOUT_SECOND = 30;
     /***
      * Api endpoint's host
      */
@@ -28,7 +32,12 @@ public class LeaderboardServiceConfig {
 
     ///For redis
     String redisHost;
+    int redisPort = 6379;
+    String redisPassword;
+    int redisTimeoutSecond;
+
     String redisLeaderboardKey;
+    String redisLeaderboardUpdateCounterKey;
     boolean ssl = false;
     JedisPoolConfig jedisPool;
 
@@ -36,17 +45,22 @@ public class LeaderboardServiceConfig {
 
     public LeaderboardServiceConfig()
     {
-        this(EMPTY_STRING, 0, EMPTY_STRING, false);
+        this(EMPTY_STRING, DEFAULT_API_PORT, EMPTY_STRING, DEFAULT_REDIS_PORT, DEFAULT_REDIS_PASSWORD, DEFAULT_REDIS_TIMEOUT_SECOND, false);
     }
 
-    public LeaderboardServiceConfig(String apiHost, int apiPort, String redisHost, boolean ssl) {
+    public LeaderboardServiceConfig(String apiHost, int apiPort, String redisHost, int redisPort, String redisPassword, int redisTimeoutSecond, boolean ssl) {
         this.apiHost = apiHost;
         this.apiPort = apiPort;
         this.redisHost = redisHost;
+        this.redisPort = redisPort;
         this.jedisPool = new JedisPoolConfig();
+        this.redisPassword = redisPassword;
+        this.redisTimeoutSecond = redisTimeoutSecond;
+
         this.ssl = ssl;
         this.nettyWorkerThread = NETTY_WORKER_THREAD;
         this.redisLeaderboardKey = DEFAULT_LEADERBOARD_KEY;
+        this.redisLeaderboardUpdateCounterKey = DEFAULT_LEADERBOARD_UPDATE_COUNTER;
     }
 
     public String getApiHost() {
@@ -63,7 +77,9 @@ public class LeaderboardServiceConfig {
 
     public static LeaderboardServiceConfig createDefaultConfig()
     {
-        LeaderboardServiceConfig config = new LeaderboardServiceConfig("127.0.0.1", 8080, "127.0.0.1", false);
+        LeaderboardServiceConfig config = new LeaderboardServiceConfig("127.0.0.1", DEFAULT_API_PORT
+                , "127.0.0.1", DEFAULT_REDIS_PORT, DEFAULT_REDIS_PASSWORD, DEFAULT_REDIS_TIMEOUT_SECOND
+                , false);
         return config;
     }
 
@@ -89,5 +105,33 @@ public class LeaderboardServiceConfig {
 
     public void setApiPort(int apiPort) {
         this.apiPort = apiPort;
+    }
+
+    public void setRedisLeaderboardKey(String redisLeaderboardKey) {
+        this.redisLeaderboardKey = redisLeaderboardKey;
+    }
+
+    public String getRedisLeaderboardUpdateCounterKey() {
+        return redisLeaderboardUpdateCounterKey;
+    }
+
+    public void setRedisLeaderboardUpdateCounterKey(String redisLeaderboardUpdateCounterKey) {
+        this.redisLeaderboardUpdateCounterKey = redisLeaderboardUpdateCounterKey;
+    }
+
+    public int getRedisPort() {
+        return redisPort;
+    }
+
+    public String getRedisPassword() {
+        return redisPassword;
+    }
+
+    public int getRedisTimeoutSecond() {
+        return redisTimeoutSecond;
+    }
+
+    public boolean isSsl() {
+        return ssl;
     }
 }

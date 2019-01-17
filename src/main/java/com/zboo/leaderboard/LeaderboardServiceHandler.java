@@ -18,6 +18,7 @@ package com.zboo.leaderboard;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.zboo.leaderboard.message.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -35,6 +36,8 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 
 import java.nio.charset.Charset;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
@@ -42,6 +45,7 @@ import static io.netty.handler.codec.http.HttpVersion.*;
 public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
     static final String ENDPOINT_POINT = "/point";
     static final String ENDPOINT_LOGIN = "/login";
+    static final String ENDPOINT_ADMIN_USER = "/adminUser";
     static final String VALID_USERNAME_MATCHER = "[a-zA-Z0-9.\\-_]{4,}";
     static final String DEFAULT_BAD_REQUEST_MESSAGE = "Invalid message";
     static final String EMPTY_STRING = "";
@@ -50,6 +54,15 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
     static final Charset DEFAULT_CHARSET = Charset.forName("UTF-8");
 
     static Logger handlerLogger = LoggerFactory.getLogger("LeaderboardHandlerLogger");
+
+    public static final String RESPONSE_KEY_USERNAME = "username";
+    public static final String RESPONSE_KEY_ADMIN = "admin";
+    public static final String RESPONSE_KEY_CURRENT_POINT = "currentPoint";
+    public static final String RESPONSE_KEY_CURRENT_RANK = "currentRank";
+    public static final String RESPONSE_KEY_SUCCESS = "success";
+    public static final String RESPONSE_KEY_UPDATE_COUNT = "updateCount";
+    public static final String RESPONSE_KEY_DELETED = "deleted";
+    public static final String RESPONSE_KEY_ERROR= "error";
 
     /**
      * For parsing JSON, threadsafe
@@ -61,7 +74,8 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
      */
     JedisPool jedisPool;
     String leaderboardKey;
-    String username = EMPTY_STRING;
+    String leaderboardCounterKey;
+    String ownerUser = EMPTY_STRING;
     LeaderboardService owner = null;
     public LeaderboardServiceHandler(LeaderboardService owner) {
         super();
@@ -69,6 +83,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         this.jedisPool = owner.getJedisPool();
         this.owner = owner;
         this.leaderboardKey = owner.getConfig().getRedisLeaderboardKey();
+        this.leaderboardCounterKey = owner.getConfig().getRedisLeaderboardUpdateCounterKey();
     }
 
     private static final byte[] CONTENT = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!'};
@@ -87,15 +102,16 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
         ///logger.debug("channelRead0: msg={}", req);
-
-
         logger.debug("channelRead0: uri={}", req.uri());
         boolean keepAlive = HttpUtil.isKeepAlive(req);
-        if (req.uri().equalsIgnoreCase(ENDPOINT_POINT)) {
+        if (req.uri().startsWith(ENDPOINT_POINT)) {
             handlePointGet(ctx, req, keepAlive);
         }
-        else if (req.uri().equalsIgnoreCase(ENDPOINT_LOGIN)){
+        else if (req.uri().startsWith(ENDPOINT_LOGIN)){
             handleLogin(ctx, req, keepAlive);
+        }
+        else if (req.uri().startsWith(ENDPOINT_ADMIN_USER)){
+            handleAdminUser(ctx, req, keepAlive);
         }
         else
         {
@@ -157,6 +173,128 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
     public static boolean isUserPointValid(long value) {
         return value >= 0;
     }
+    public void handleAdminUser(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("handleAdminUser.start: keepAlive={}, remote={}, method={}, uri={}"
+                    , keepAlive
+                    , ctx.channel().remoteAddress()
+                    , msg.method()
+                    , msg.uri());
+        }
+        boolean validRequest = false;
+
+        String content = msg.content().toString(DEFAULT_CHARSET);
+        QueryStringDecoder decoder = new QueryStringDecoder(msg.uri());
+        logger.info("parameters: {}", decoder.parameters());
+
+        String username = null;
+        if(decoder.parameters().containsKey(RESPONSE_KEY_USERNAME))
+        {
+            List<String> usernames = decoder.parameters().get(RESPONSE_KEY_USERNAME);
+            if(usernames.size()>0)
+            {
+                username = usernames.get(0);
+            }
+        }
+
+        if (msg.method() == HttpMethod.GET) {
+            ///Validating request:
+            validRequest = false;
+            if (isUsernameValid(username)) {
+                validRequest = true;
+            } else {
+                logger.info("handleAdminUser: invalid username={}", username);
+            }
+            if (validRequest) {
+                ///Query by redis pipeline for user newPoint
+                Jedis jedis = this.jedisPool.getResource();
+
+                Pipeline pipeline = jedis.pipelined();
+                Response<Double> currentPointResponse = pipeline.zscore(this.leaderboardKey, username);
+                Response<Long> currentRankResponse = pipeline.zrank(this.leaderboardKey, username);
+                Response<Long> updateCounter = pipeline.hincrBy(this.leaderboardCounterKey, username, 0);
+                pipeline.sync();
+                jedis.close();
+                long currentPoint = currentPointResponse.get().longValue();
+                int currentRank = redisRankToUserRank(currentRankResponse.get().longValue());
+                ///Prepare response
+                LinkedHashMap<String, Object> resp = new LinkedHashMap<>();
+                resp.put(RESPONSE_KEY_SUCCESS, true);
+                resp.put(RESPONSE_KEY_USERNAME, username);
+                ///resp.put(RESPONSE_KEY_ADMIN, admin);
+                resp.put(RESPONSE_KEY_CURRENT_POINT, currentPoint);
+                resp.put(RESPONSE_KEY_CURRENT_RANK, currentRank);
+                resp.put(RESPONSE_KEY_UPDATE_COUNT, updateCounter.get());
+
+
+
+                responseJson(ctx, keepAlive, resp);
+                logger.info("handleAdminUser.GET: SUCCESS");
+
+            } else {
+                responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
+                logger.info("handleAdminUser.GET: invalidRequest");
+            }
+        } else if (msg.method() == HttpMethod.DELETE) {
+            ///Validating request:
+            validRequest = false;
+            AdminUserPointRequest request = null;
+            try {
+                request = gsonParser.fromJson(content, AdminUserPointRequest.class);
+                if (isUsernameValid(request.username)) {
+                    validRequest = true;
+                } else {
+                    logger.info("handleAdminUser: invalid ownerUser, submit={}", request.username);
+                }
+            } catch (JsonSyntaxException e) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("handleAdminUser: content is not json, {}", content);
+                }
+            }
+            ///Create or update newPoint on server
+            if (validRequest) {
+                ///Query by redis pipeline for user newPoint
+                Jedis jedis = this.jedisPool.getResource();
+                Pipeline pipeline = jedis.pipelined();
+                Response<Long> removedRank = pipeline.zrem(this.leaderboardKey, request.username);
+                Response<Long> removedCounter = pipeline.hdel(this.leaderboardCounterKey, request.username);
+                pipeline.sync();
+                jedis.close();
+
+                ///Prepare response
+                boolean deleted = removedRank.get() > 0;
+
+                LinkedHashMap<String, Object> resp = new LinkedHashMap<>();
+
+                resp.put(RESPONSE_KEY_USERNAME, request.username);
+                resp.put(RESPONSE_KEY_ADMIN, request.admin);
+                if (deleted) {
+                    resp.put(RESPONSE_KEY_SUCCESS, true);
+                    resp.put(RESPONSE_KEY_DELETED, true);
+                }
+                else
+                {
+                    resp.put(RESPONSE_KEY_SUCCESS, true);
+                    resp.put(RESPONSE_KEY_DELETED, false);
+                }
+
+
+                logger.info("handleAdminUser.DELETE: SUCCESS, ownerUser={}, admin={}, deleted={}", request.username, request.admin, deleted);
+                responseJson(ctx, keepAlive, resp);
+
+            } else {
+                responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
+                logger.info("handleAdminUser.DELETE: invalidRequest");
+            }
+        }
+        else
+        {
+            responseNotSupportAndClose(ctx);
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("handleAdminUser.finish: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
+        }
+    }
     public void handleLogin(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
         if (logger.isDebugEnabled()) {
             logger.debug("handleLogin.start: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
@@ -172,10 +310,10 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
             try {
                 request = gsonParser.fromJson(content, LeaderboardRequest.class);
                 if(request != null) {
-                    if (isUsernameValid(request.username)) {
+                    if (isUsernameValid(ownerUser)) {
                         validRequest = true;
                     } else {
-                        logger.info("handleLogin: invalid username, submit={}", request.username);
+                        logger.info("handleLogin: invalid ownerUser, submit={}", ownerUser);
                     }
                 }
                 else
@@ -195,7 +333,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
                 resp.setSuccess(true);
                 ///Create new user
                 LeaderboardUser user = new LeaderboardUser(request.username, ctx);
-                username = request.username;
+                ownerUser = request.username;
                 this.owner.addNewUser(user);
 
                 responseJson(ctx, keepAlive, resp);
@@ -208,11 +346,16 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
             ///Create or update newPoint on server
             handlePointPut(ctx, msg, keepAlive);
         }
+        else
+        {
+            responseNotSupportAndClose(ctx);
+        }
 
         if (logger.isDebugEnabled()) {
             logger.debug("handleLogin.finish: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
         }
     }
+
     public void handlePointGet(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
         if (logger.isDebugEnabled()) {
             logger.debug("handlePointGet.start: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
@@ -230,7 +373,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
                 if (isUsernameValid(request.username)) {
                     validRequest = true;
                 } else {
-                    logger.info("handlePointGET: invalid username, submit={}", request.username);
+                    logger.info("handlePointGET: invalid ownerUser, submit={}", request.username);
                 }
             } catch (JsonSyntaxException e) {
                 if (logger.isDebugEnabled()) {
@@ -299,7 +442,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
                     logger.info("handlePointPut: invalid point, submit={}", request.newPoint);
                 }
             } else {
-                logger.info("handlePointPut: invalid username, submit={}", request.username);
+                logger.info("handlePointPut: invalid ownerUser, submit={}", request.username);
             }
         } catch (JsonSyntaxException e) {
             if (logger.isDebugEnabled()) {
@@ -315,6 +458,8 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
             Response<Long> totalRank=pipeline.zadd(this.leaderboardKey, request.newPoint, request.username);
             Response<Double> currentPointResponse = pipeline.zscore(this.leaderboardKey, request.username);
             Response<Long> currentRankResponse = pipeline.zrank(this.leaderboardKey, request.username);
+            pipeline.hincrBy(this.leaderboardCounterKey, request.username, 1);
+
             pipeline.close();
             pipeline.sync();
             jedis.close();
@@ -332,7 +477,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
             ///Notify service that new point updated
             this.owner.onHandleNewPointUpdated(request.username, resp.getCurrentPoint(), resp.getCurrentRank());
 
-            logger.info("handlePointPut: SUCCESS, username={},newPoint={}, totalRank={}", request.username, request.newPoint, totalRank.get());
+            logger.info("handlePointPut: SUCCESS, ownerUser={},newPoint={}, totalRank={}", request.username, request.newPoint, totalRank.get());
         } else {
             responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
             ///logger.info("handlePointGet.GET: invalidRequest");
@@ -385,9 +530,9 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
 
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         logger.info("channelInactive: remote={}", ctx.channel().remoteAddress());
-        if(this.username!=null && !username.isEmpty())
+        if(this.ownerUser !=null && !ownerUser.isEmpty())
         {
-            this.owner.removeUser(this.username);
+            this.owner.removeUser(this.ownerUser);
         }
     }
 }

@@ -1,9 +1,9 @@
-package com.zboo.leaderboard;
+package com.zboo.leaderboard.message;
 
 public class LeaderboardPointNotification {
-    String username;
-    long point;
-    int rank;
+    public String username;
+    public long point;
+    public int rank;
 
     public LeaderboardPointNotification(String username, long point, int rank) {
         this.username = username;
