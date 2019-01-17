@@ -27,13 +27,11 @@ public class LeaderboardServiceInitializer extends ChannelInitializer<SocketChan
 
     private final SslContext sslCtx;
     int maxContentLength = 0;
-    JedisPool jedisPool;
-    String leaderboardKey = null;
-    public LeaderboardServiceInitializer(SslContext sslCtx, int maxContentLength, JedisPool jedisPool, String leaderboardKey) {
+    LeaderboardService owner;
+    public LeaderboardServiceInitializer(SslContext sslCtx, int maxContentLength, LeaderboardService owner) {
         this.sslCtx = sslCtx;
         this.maxContentLength = maxContentLength;
-        this.jedisPool = jedisPool;
-        this.leaderboardKey = leaderboardKey;
+        this.owner = owner;
     }
 
     @Override
@@ -47,6 +45,6 @@ public class LeaderboardServiceInitializer extends ChannelInitializer<SocketChan
         p.addLast(new HttpObjectAggregator(maxContentLength));
         p.addLast(new HttpServerExpectContinueHandler());
 
-        p.addLast(new LeaderboardServiceHandler(jedisPool, leaderboardKey));
+        p.addLast(new LeaderboardServiceHandler(owner));
     }
 }

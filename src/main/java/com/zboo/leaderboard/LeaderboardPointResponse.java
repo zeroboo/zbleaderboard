@@ -2,7 +2,7 @@ package com.zboo.leaderboard;
 
 public class LeaderboardPointResponse extends LeaderboardResponse{
     long currentPoint = 0;
-    long currentRank = 0;
+    int currentRank = 0;
     public LeaderboardPointResponse()
     {
         super();
@@ -19,11 +19,11 @@ public class LeaderboardPointResponse extends LeaderboardResponse{
         this.currentPoint = point;
     }
 
-    public long getCurrentRank() {
+    public int getCurrentRank() {
         return currentRank;
     }
 
-    public void setCurrentRank(long currentRank) {
+    public void setCurrentRank(int currentRank) {
         this.currentRank = currentRank;
     }
 }

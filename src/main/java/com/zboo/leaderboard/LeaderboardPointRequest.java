@@ -1,14 +1,15 @@
 package com.zboo.leaderboard;
 
-class LeaderboardPointRequest{
-    static final String EMPTY_STRING = "";
-    String username;
+class LeaderboardPointRequest extends LeaderboardRequest{
     long newPoint;
-
     public LeaderboardPointRequest()
     {
-        username = EMPTY_STRING;
+        super();
         newPoint = 0;
+    }
+
+    public long getNewPoint() {
+        return newPoint;
     }
 
 

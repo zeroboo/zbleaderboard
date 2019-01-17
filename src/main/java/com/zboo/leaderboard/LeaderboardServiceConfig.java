@@ -3,7 +3,7 @@ package com.zboo.leaderboard;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import redis.clients.jedis.JedisPoolConfig;
 /**
- * Store config of a leaderboard service
+ * Store config of a leaderboard owner
  * */
 
 public class LeaderboardServiceConfig {
@@ -81,5 +81,13 @@ public class LeaderboardServiceConfig {
 
     public String getRedisLeaderboardKey() {
         return redisLeaderboardKey;
+    }
+
+    public void setApiHost(String apiHost) {
+        this.apiHost = apiHost;
+    }
+
+    public void setApiPort(int apiPort) {
+        this.apiPort = apiPort;
     }
 }

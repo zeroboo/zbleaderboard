@@ -1,12 +1,13 @@
 package com.zboo.leaderboard;
 
 public class LeaderboardResponse {
-
+    static final String DEFAULT_VERSION = "1";
     static final String EMPTY_STRING = "";
     boolean success;
     String error;
     String version;
     String username;
+
 
     public LeaderboardResponse(boolean success, String error, String version, String username) {
         this.success = success;
@@ -18,12 +19,6 @@ public class LeaderboardResponse {
     public LeaderboardResponse() {
         this(false, EMPTY_STRING, EMPTY_STRING, EMPTY_STRING);
     }
-
-    public static LeaderboardPointResponse createLeaderboardPointResponse()
-    {
-        return new LeaderboardPointResponse();
-    }
-
 
     public boolean isSuccess() {
         return success;

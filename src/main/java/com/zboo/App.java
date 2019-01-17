@@ -34,7 +34,11 @@ public class App
             public void run()
             {
                 logger.info("Application Terminating ...");
-                service.stop();
+                try {
+                    service.stop();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 logger.info("Application Terminated ...");
             }
         });
