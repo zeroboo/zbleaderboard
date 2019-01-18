@@ -8,7 +8,7 @@ REST service for game leaderboard, based on Netty and Redis
 ```maven
 mvn clean package
 ```
-Jar file will be place on target folder:
+Jar file will be placed on target folder:
   - zbleaderboard-<version>.jar 
   - zbleaderboard-<version>-full.jar: jar with dependencies 
 
@@ -21,7 +21,7 @@ java -jar zbleaderboard-<version>.jar config.json
 
 
 ## Configuration
-Edit config.json file for service endpoint and redis connection.
+Edit config.json file for service endpoint and Redis connection.
 Below is default config:
 ```json
 {
