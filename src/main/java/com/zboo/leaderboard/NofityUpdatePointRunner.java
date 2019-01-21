@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 
-import static com.zboo.leaderboard.LeaderboardServiceHandler.CONTENT_TYPE_JSON;
+import static com.zboo.leaderboard.LeaderboardServiceUserPointHandler.CONTENT_TYPE_JSON;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;

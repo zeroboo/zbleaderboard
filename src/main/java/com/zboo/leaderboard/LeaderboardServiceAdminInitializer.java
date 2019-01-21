@@ -15,18 +15,18 @@
  */
 package com.zboo.leaderboard;
 
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.http.*;
-import io.netty.handler.ssl.SslContext;
+        import io.netty.channel.ChannelInitializer;
+        import io.netty.channel.ChannelPipeline;
+        import io.netty.channel.socket.SocketChannel;
+        import io.netty.handler.codec.http.*;
+        import io.netty.handler.ssl.SslContext;
 
-public class LeaderboardServiceInitializer extends ChannelInitializer<SocketChannel> {
+public class LeaderboardServiceAdminInitializer extends ChannelInitializer<SocketChannel> {
 
     private final SslContext sslCtx;
     int maxContentLength = 0;
     LeaderboardService owner;
-    public LeaderboardServiceInitializer(SslContext sslCtx, int maxContentLength, LeaderboardService owner) {
+    public LeaderboardServiceAdminInitializer(SslContext sslCtx, int maxContentLength, LeaderboardService owner) {
         this.sslCtx = sslCtx;
         this.maxContentLength = maxContentLength;
         this.owner = owner;
@@ -43,6 +43,6 @@ public class LeaderboardServiceInitializer extends ChannelInitializer<SocketChan
         p.addLast(new HttpObjectAggregator(maxContentLength));
         p.addLast(new HttpServerExpectContinueHandler());
 
-        p.addLast(new LeaderboardServiceHandler(owner));
+        p.addLast(new LeaderboardServiceAdminHandler(owner));
     }
 }

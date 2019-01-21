@@ -1,14 +1,19 @@
 {
-  "apiHost": "127.0.0.1",
-  "apiPort": 8080,
-  "nettyWorkerThread": 8,
+  "apiUserHost": "127.0.0.1",
+  "apiUserPort": 8080,
+  "apiUserSSL": false,
+  "apiUserNettyWorkerThread": 8,
+  "apiAdminNettyWorkerThread": 1,
+  "apiAdminHost": "127.0.0.1",
+  "apiAdminPort": 8081,
+  "apiAdminSSL": false,
   "redisHost": "127.0.0.1",
   "redisPort": 6379,
+  "redisSSL": false,
   "redisPassword": "",
   "redisTimeoutSecond": 30,
   "redisLeaderboardKey": "zbleaderboard",
   "redisLeaderboardUpdateCounterKey": "zbleaderboard_update_counter",
-  "ssl": false,
   "jedisPool": {
     "maxTotal": 8,
     "maxIdle": 8,
@@ -28,6 +33,7 @@
     "timeBetweenEvictionRunsMillis": 30000,
     "blockWhenExhausted": true,
     "jmxEnabled": true,
-    "jmxNamePrefix": "pool"
+    "jmxNamePrefix": "pool",
+    "jmxNameBase": null
   }
 }

@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.zboo.leaderboard.LeaderboardService;
-import com.zboo.leaderboard.LeaderboardServiceHandler;
+import com.zboo.leaderboard.LeaderboardServiceUserPointHandler;
 import org.junit.*;
 import redis.clients.jedis.Jedis;
 
@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertTrue;
 
 public class TestAdminUserPoint {
     static final String apiHost = "127.0.0.1";
@@ -25,12 +26,13 @@ public class TestAdminUserPoint {
     static final String TEST_LEADERBOARD_KEY = "test_leaderboard_admin";
     static final String TEST_LEADERBOARD_COUNTER_KEY = "test_leaderboard_counter_admin";
     static Gson gson = new GsonBuilder().create();
+
     @BeforeClass
     public static void beforeClass()
     {
         service = new LeaderboardService();
-        service.getConfig().setApiHost(apiHost);
-        service.getConfig().setApiPort(apiPort);
+        service.getConfig().setApiUserHost(apiHost);
+        service.getConfig().setApiUserPort(apiPort);
         service.getConfig().setRedisLeaderboardKey(TEST_LEADERBOARD_KEY);
         service.getConfig().setRedisLeaderboardUpdateCounterKey(TEST_LEADERBOARD_COUNTER_KEY);
         try {
@@ -75,6 +77,7 @@ public class TestAdminUserPoint {
     {
         try {
             service.stop();
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -132,14 +135,15 @@ public class TestAdminUserPoint {
             String result = response.toString();
             LinkedHashMap<String, Object> respData = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
             System.out.println(result);
-            assertEquals(true, respData.get(LeaderboardServiceHandler.RESPONSE_KEY_SUCCESS));
-            assertEquals("zeroboo1", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
+            assertEquals(true, respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_SUCCESS));
+            assertEquals("zeroboo1", respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_USERNAME));
             assertEquals("admin", respData.get("admin"));
             assertEquals(true, respData.get("deleted"));
 
 
         } catch (IOException e) {
             e.printStackTrace();
+            assertTrue("Has exception!", false);
         }
     }
 
@@ -178,16 +182,17 @@ public class TestAdminUserPoint {
             String result = response.toString();
             LinkedHashMap<String, Object> respData = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
             System.out.println(result);
-            assertEquals(true, respData.get(LeaderboardServiceHandler.RESPONSE_KEY_SUCCESS));
-            assertEquals("zeroboo3", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
-            assertEquals("3000.0", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_CURRENT_POINT).toString());
-            assertEquals("3.0", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_UPDATE_COUNT).toString());
+            assertEquals(true, respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_SUCCESS));
+            assertEquals("zeroboo3", respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_USERNAME));
+            assertEquals("3000.0", respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_CURRENT_POINT).toString());
+            assertEquals("3.0", respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_UPDATE_COUNT).toString());
 
 
 
 
         } catch (IOException e) {
             e.printStackTrace();
+            assertTrue("Has exception!", false);
         }
     }
     @Test
@@ -223,6 +228,7 @@ public class TestAdminUserPoint {
 
         } catch (IOException e) {
             e.printStackTrace();
+            assertTrue("Has exception!", false);
         }
     }
     @Test
@@ -265,14 +271,15 @@ public class TestAdminUserPoint {
             String result = response.toString();
             LinkedHashMap<String, Object> respData = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
             System.out.println(result);
-            assertEquals(true, respData.get(LeaderboardServiceHandler.RESPONSE_KEY_SUCCESS));
-            assertEquals("zeroboovoid", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
-            assertEquals("admin", respData.get(LeaderboardServiceHandler.RESPONSE_KEY_ADMIN));
-            assertEquals(false, respData.get(LeaderboardServiceHandler.RESPONSE_KEY_DELETED));
+            assertEquals(true, respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_SUCCESS));
+            assertEquals("zeroboovoid", respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_USERNAME));
+            assertEquals("admin", respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_ADMIN));
+            assertEquals(false, respData.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_DELETED));
 
 
         } catch (IOException e) {
             e.printStackTrace();
+            assertTrue("Has exception!", false);
         }
     }
     @Test
@@ -326,6 +333,7 @@ public class TestAdminUserPoint {
 
         } catch (IOException e) {
             e.printStackTrace();
+            assertTrue("Has exception!", false);
         }
     }
 }

@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.zboo.leaderboard.LeaderboardService;
-import com.zboo.leaderboard.LeaderboardServiceHandler;
+import com.zboo.leaderboard.LeaderboardServiceUserPointHandler;
 import org.junit.*;
 import redis.clients.jedis.Jedis;
 
@@ -17,20 +17,26 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertTrue;
+import static junit.framework.TestCase.fail;
 
 public class TestUser {
     static final String apiHost = "127.0.0.1";
-    static final int apiPort = 8081;
+    static final int apiPort = 8082;
     static LeaderboardService service;
     static final String TEST_LEADERBOARD_KEY = "test_leaderboard_user";
     static final String TEST_LEADERBOARD_COUNTER_KEY = "test_leaderboard_counter_user";
     static Gson gson = new GsonBuilder().create();
+    static final String USERNAME_TOBE_DELETED = "zeroboo3";
+    static final String USERNAME_VALID = "zeroboo1";
+    static final String USERNAME_INVALID= "zerobooxxx";
     @BeforeClass
     public static void beforeClass()
     {
+        System.out.println("TestUser.beforeClass");
         service = new LeaderboardService();
-        service.getConfig().setApiHost(apiHost);
-        service.getConfig().setApiPort(apiPort);
+        service.getConfig().setApiUserHost(apiHost);
+        service.getConfig().setApiUserPort(apiPort);
         service.getConfig().setRedisLeaderboardKey(TEST_LEADERBOARD_KEY);
         service.getConfig().setRedisLeaderboardUpdateCounterKey(TEST_LEADERBOARD_COUNTER_KEY);
         try {
@@ -51,17 +57,18 @@ public class TestUser {
             }
 
             ///Create fake data
-            jedis.zadd(TEST_LEADERBOARD_KEY, 1000, "zeroboo1");
-            jedis.hincrBy(TEST_LEADERBOARD_COUNTER_KEY, "zeroboo1", 1);
+            jedis.zadd(TEST_LEADERBOARD_KEY, 1000, USERNAME_VALID);
+            jedis.hincrBy(TEST_LEADERBOARD_COUNTER_KEY, USERNAME_VALID, 1);
+
             jedis.zadd(TEST_LEADERBOARD_KEY, 2000, "zeroboo2");
             jedis.hincrBy(TEST_LEADERBOARD_COUNTER_KEY, "zeroboo2", 2);
 
             jedis.zadd(TEST_LEADERBOARD_KEY, 3000, "zeroboo3");
             jedis.hincrBy(TEST_LEADERBOARD_COUNTER_KEY, "zeroboo3", 3);
 
-
-
+            jedis.disconnect();
             jedis.close();
+
 
         } catch (CertificateException e) {
             e.printStackTrace();
@@ -76,7 +83,9 @@ public class TestUser {
     public static void afterClass()
     {
         try {
+            System.out.println("TestUser.afterClass");
             service.stop();
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -137,15 +146,22 @@ public class TestUser {
             String result=response.toString();
             System.out.println(result);
             LinkedHashMap<String, Object> resp = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
-            assertEquals("zeroboo3", resp.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
-            assertEquals(true, resp.get(LeaderboardServiceHandler.RESPONSE_KEY_SUCCESS));
+            assertEquals("zeroboo3", resp.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_USERNAME));
+            assertEquals(true, resp.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_SUCCESS));
 
             ///Connection
             assertEquals("keep-alive", connection.getHeaderField("Connection"));
 
         } catch (IOException e) {
             e.printStackTrace();
+            assertTrue("Has exception!", false);
         }
+    }
+
+    @Test
+    public void TestLoginInvalidToken_ResponseError()
+    {
+        fail("not implemented");
     }
 
     @Test
@@ -190,7 +206,7 @@ public class TestUser {
             String result=response.toString();
             System.out.println(result);
             LinkedHashMap<String, Object> resp = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
-            assertEquals("zeroboo3", resp.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
+            assertEquals("zeroboo3", resp.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_USERNAME));
             assertEquals("1000.0", resp.get("currentPoint").toString());
 
             ///Connection
@@ -198,9 +214,14 @@ public class TestUser {
 
         } catch (IOException e) {
             e.printStackTrace();
+            assertTrue("Has exception!", false);
         }
     }
 
+    @Test
+    public void TestGetPointOnNotExistedUser_ResponseError() {
+        fail("not implemented");
+    }
     @Test
     public void TestGetPointOnExistedUser_ResponseSuccess()
     {
@@ -234,14 +255,16 @@ public class TestUser {
             String result=response.toString();
             System.out.println(result);
             LinkedHashMap<String, Object> resp = gson.fromJson(result, new TypeToken<LinkedHashMap<String, Object>>(){}.getType());
-            assertEquals("zeroboo1", resp.get(LeaderboardServiceHandler.RESPONSE_KEY_USERNAME));
+            assertEquals(USERNAME_VALID, resp.get(LeaderboardServiceUserPointHandler.RESPONSE_KEY_USERNAME));
             assertEquals("1000.0", resp.get("currentPoint").toString());
 
             ///Connection
+            assertEquals(200, connection.getResponseCode());
             assertEquals("keep-alive", connection.getHeaderField("Connection"));
 
         } catch (IOException e) {
             e.printStackTrace();
+            assertTrue("Has exception!", false);
         }
     }
 }

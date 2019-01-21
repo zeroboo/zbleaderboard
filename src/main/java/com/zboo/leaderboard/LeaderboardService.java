@@ -9,8 +9,6 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
@@ -43,6 +41,8 @@ public class LeaderboardService {
     ScheduledExecutorService notifyServiceScheduler;
     NofityUpdatePointRunner notifyRunner;
     Charset charset;
+    Channel channelUser;
+    Channel channelAdmin;
     public LeaderboardService() {
         this.config = LeaderboardServiceConfig.createDefaultConfig();
         this.gson = new GsonBuilder().create();
@@ -59,8 +59,10 @@ public class LeaderboardService {
     }
 
 
-    EventLoopGroup bossGroup = null;
-    EventLoopGroup workerGroup = null;
+    EventLoopGroup bossGroupUser = null;
+    EventLoopGroup workerGroupUser = null;
+    EventLoopGroup bossGroupAdmin = null;
+    EventLoopGroup workerGroupAdmin = null;
     static final int MAX_CONTENT_LENGTH = 1024 * 1024;
 
     public void start() throws CertificateException, SSLException, InterruptedException {
@@ -72,30 +74,46 @@ public class LeaderboardService {
     public void initNetty() throws CertificateException, SSLException, InterruptedException {
         // Configure SSL.
         final SslContext sslCtx;
-        if (this.config.hasSSL()) {
+        if (this.config.hasApiUserSSL()) {
             SelfSignedCertificate ssc = new SelfSignedCertificate();
             sslCtx = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
         } else {
             sslCtx = null;
         }
 
-        // Configure the server.
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup(this.config.getNettyWorkerThread());
+        ///Config user api
+        this.bossGroupUser = new NioEventLoopGroup(1);
+        this.workerGroupUser = new NioEventLoopGroup(this.config.getApiUserNettyWorkerThread());
+        ///Config admin api
+        this.bossGroupAdmin = new NioEventLoopGroup(1);
+        this.workerGroupAdmin = new NioEventLoopGroup(this.config.getApiAdminNettyWorkerThread());
+
         try {
-            ServerBootstrap b = new ServerBootstrap();
-            b.option(ChannelOption.SO_BACKLOG, 1024);
-            b.group(bossGroup, workerGroup)
+            ServerBootstrap bsUser = new ServerBootstrap();
+            bsUser.option(ChannelOption.SO_BACKLOG, 1024);
+            bsUser.group(bossGroupUser, workerGroupUser)
                     .channel(NioServerSocketChannel.class)
-                    .handler(new LoggingHandler(LogLevel.INFO))
-                    .childHandler(new LeaderboardServiceInitializer(sslCtx, MAX_CONTENT_LENGTH, this));
+                    ///.handler(new LoggingHandler(LogLevel.INFO))
+                    .childHandler(new LeaderboardServiceUserInitializer(sslCtx, MAX_CONTENT_LENGTH, this));
 
-            Channel ch = b.bind(InetAddress.getByName(this.config.getApiHost()), this.config.getApiPort()).sync().channel();
-
-            logger.info("initNetty: done, web service started on {}:{}"
-                    , this.config.hasSSL() ? "https" : "http"
-                    , this.config.getApiHost() + this.config.getApiPort()
+            channelUser = bsUser.bind(InetAddress.getByName(this.config.getApiUserHost()), this.config.getApiUserPort()).sync().channel();
+            logger.info("initNetty: user service started on {}:{}"
+                    , this.config.hasApiUserSSL() ? "https" : "http"
+                    , channelUser.localAddress().toString()
             );
+
+            ServerBootstrap bsAdmin = new ServerBootstrap();
+            bsAdmin.option(ChannelOption.SO_BACKLOG, 1024);
+            bsAdmin.group(bossGroupAdmin, workerGroupAdmin)
+                    .channel(NioServerSocketChannel.class)
+                    ///.handler(new LoggingHandler(LogLevel.INFO))
+                    .childHandler(new LeaderboardServiceAdminInitializer(sslCtx, MAX_CONTENT_LENGTH, this));
+            logger.info("initNetty: admin service started on {}:{}"
+                    , this.config.hasApiUserSSL() ? "https" : "http"
+                    , channelUser.localAddress().toString()
+            );
+
+
         } catch (IOException ex) {
             logger.error("initNetty: failed!");
             logger.error("initNetty.config: {}", gson.toJson(this.config));
@@ -104,6 +122,7 @@ public class LeaderboardService {
     }
 
     public void initJedis() {
+        logger.info("jedisPool: {}", this.config.getJedisPool());
         if(config.getRedisPassword()!=null && !config.getRedisPassword().isEmpty())
         {
             jedisPool = new JedisPool(this.config.jedisPool
@@ -126,16 +145,25 @@ public class LeaderboardService {
     }
 
     public void stop() throws InterruptedException {
+        logger.info("closing channelUser");
+        if(channelUser !=null)
+        {
+            if(channelUser.isOpen()) {
+                channelUser.close().sync();
+            }
+        }
         logger.info("closing boss group");
-        if (bossGroup != null) {
-            bossGroup.shutdownGracefully().sync();
+        if (bossGroupUser != null) {
+            bossGroupUser.shutdownGracefully().sync();
         }
         logger.info("closing worker group");
-        if (workerGroup != null) {
-            workerGroup.shutdownGracefully();
+        if (workerGroupUser != null) {
+            workerGroupUser.shutdownGracefully();
         }
         logger.info("closing jedis");
         this.jedisPool.close();
+        this.jedisPool.destroy();
+
         logger.info("closing notify scheduler");
         this.notifyServiceScheduler.shutdown();
         logger.info("stopped!");

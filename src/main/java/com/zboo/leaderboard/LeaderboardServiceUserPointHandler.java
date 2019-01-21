@@ -42,12 +42,28 @@ import java.util.List;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 
-public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class LeaderboardServiceUserPointHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
     static final String ENDPOINT_POINT = "/point";
+    static final String ENDPOINT_LEADERBOARD = "/leaderboard";
     static final String ENDPOINT_LOGIN = "/login";
-    static final String ENDPOINT_ADMIN_USER = "/adminUser";
+
     static final String VALID_USERNAME_MATCHER = "[a-zA-Z0-9.\\-_]{4,}";
-    static final String DEFAULT_BAD_REQUEST_MESSAGE = "Invalid message";
+    static final String DEFAULT_BAD_REQUEST_MESSAGE;
+    static final String DEFAULT_INTERNAL_ERROR;
+
+    public static final String RESPONSE_KEY_ERROR = "error";
+
+    static {
+        Gson gson = new GsonBuilder().create();
+        LinkedHashMap<String, String> internalErrorResponse = new LinkedHashMap<>();
+        internalErrorResponse.put(RESPONSE_KEY_ERROR, "Internal error");
+        DEFAULT_INTERNAL_ERROR = gson.toJson(internalErrorResponse);
+
+        LinkedHashMap<String, String> badRequestErrorResponse = new LinkedHashMap<>();
+        internalErrorResponse.put(RESPONSE_KEY_ERROR, "Bad request");
+        DEFAULT_BAD_REQUEST_MESSAGE = gson.toJson(badRequestErrorResponse);
+    }
+
     static final String EMPTY_STRING = "";
     static final String NOT_SUPPORTED = "Not supported";
     static final String CONTENT_TYPE_JSON = "application/json";
@@ -62,7 +78,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
     public static final String RESPONSE_KEY_SUCCESS = "success";
     public static final String RESPONSE_KEY_UPDATE_COUNT = "updateCount";
     public static final String RESPONSE_KEY_DELETED = "deleted";
-    public static final String RESPONSE_KEY_ERROR= "error";
+
 
     /**
      * For parsing JSON, threadsafe
@@ -77,7 +93,8 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
     String leaderboardCounterKey;
     String ownerUser = EMPTY_STRING;
     LeaderboardService owner = null;
-    public LeaderboardServiceHandler(LeaderboardService owner) {
+
+    public LeaderboardServiceUserPointHandler(LeaderboardService owner) {
         super();
         this.gsonParser = new GsonBuilder().create();
         this.jedisPool = owner.getJedisPool();
@@ -92,7 +109,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
     private static final AsciiString CONTENT_LENGTH = AsciiString.cached("Content-Length");
     private static final AsciiString CONNECTION = AsciiString.cached("Connection");
     private static final AsciiString KEEP_ALIVE = AsciiString.cached("keep-alive");
-    private Logger logger = LoggerFactory.getLogger(LeaderboardServiceHandler.class);
+    private Logger logger = LoggerFactory.getLogger(LeaderboardServiceUserPointHandler.class);
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) {
@@ -101,20 +118,23 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
-        ///logger.debug("channelRead0: msg={}", req);
-        logger.debug("channelRead0: uri={}", req.uri());
+        if(logger.isDebugEnabled())
+        {
+            logger.debug("channelRead0: uri={}", req.uri());
+        }
+
         boolean keepAlive = HttpUtil.isKeepAlive(req);
         if (req.uri().startsWith(ENDPOINT_POINT)) {
             handlePoint(ctx, req, keepAlive);
-        }
-        else if (req.uri().startsWith(ENDPOINT_LOGIN)){
+        } else if (req.uri().startsWith(ENDPOINT_LOGIN)) {
             handleLogin(ctx, req, keepAlive);
         }
-        else if (req.uri().startsWith(ENDPOINT_ADMIN_USER)){
-            handleAdminUser(ctx, req, keepAlive);
-        }
-        else
+        else if(req.uri().startsWith(ENDPOINT_LEADERBOARD))
         {
+
+        }
+        else {
+            logger.error("NotSupportedRequest: remote={}, uri={}", ctx.channel(), req.uri());
             responseNotSupportAndClose(ctx);
         }
     }
@@ -141,6 +161,20 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
 
     /**
      * Response not support message and close connection, despite of client keep alive or not
+     */
+    public void responseInternalError(ChannelHandlerContext ctx) {
+        ByteBuf buf = ctx.alloc().buffer();
+        buf.writeBytes(DEFAULT_INTERNAL_ERROR.getBytes(DEFAULT_CHARSET));
+
+        FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, INTERNAL_SERVER_ERROR, buf);
+        response.headers().set(CONTENT_TYPE, CONTENT_TYPE_JSON);
+        response.headers().setInt(CONTENT_LENGTH, response.content().readableBytes());
+
+        ctx.write(response).addListener(ChannelFutureListener.CLOSE).addListener(LOG_HANDLER);
+    }
+
+    /**
+     * Inform internal error to client, not close connection
      */
     public void responseBadRequestAndClose(ChannelHandlerContext ctx, String message) {
         ByteBuf buf = ctx.alloc().buffer();
@@ -173,6 +207,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
     public static boolean isUserPointValid(long value) {
         return value >= 0;
     }
+
     public void handleAdminUser(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
         if (logger.isDebugEnabled()) {
             logger.debug("handleAdminUser.start: keepAlive={}, remote={}, method={}, uri={}"
@@ -188,11 +223,9 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         logger.info("parameters: {}", decoder.parameters());
 
         String username = null;
-        if(decoder.parameters().containsKey(RESPONSE_KEY_USERNAME))
-        {
+        if (decoder.parameters().containsKey(RESPONSE_KEY_USERNAME)) {
             List<String> usernames = decoder.parameters().get(RESPONSE_KEY_USERNAME);
-            if(usernames.size()>0)
-            {
+            if (usernames.size() > 0) {
                 username = usernames.get(0);
             }
         }
@@ -225,7 +258,6 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
                 resp.put(RESPONSE_KEY_CURRENT_POINT, currentPoint);
                 resp.put(RESPONSE_KEY_CURRENT_RANK, currentRank);
                 resp.put(RESPONSE_KEY_UPDATE_COUNT, updateCounter.get());
-
 
 
                 responseJson(ctx, keepAlive, resp);
@@ -271,9 +303,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
                 if (deleted) {
                     resp.put(RESPONSE_KEY_SUCCESS, true);
                     resp.put(RESPONSE_KEY_DELETED, true);
-                }
-                else
-                {
+                } else {
                     resp.put(RESPONSE_KEY_SUCCESS, true);
                     resp.put(RESPONSE_KEY_DELETED, false);
                 }
@@ -286,15 +316,14 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
                 responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
                 logger.info("handleAdminUser.DELETE: invalidRequest");
             }
-        }
-        else
-        {
+        } else {
             responseNotSupportAndClose(ctx);
         }
         if (logger.isDebugEnabled()) {
             logger.debug("handleAdminUser.finish: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
         }
     }
+
     public void handleLogin(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
         if (logger.isDebugEnabled()) {
             logger.debug("handleLogin.start: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
@@ -308,15 +337,13 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
             validRequest = false;
             try {
                 request = gsonParser.fromJson(content, LeaderboardRequest.class);
-                if(request != null) {
+                if (request != null) {
                     if (isUsernameValid(request.username)) {
                         validRequest = true;
                     } else {
                         logger.info("handleLogin: invalid ownerUser, submit={}", request.username);
                     }
-                }
-                else
-                {
+                } else {
                     logger.debug("handleLogin: content null: {}", content);
                 }
             } catch (JsonSyntaxException e) {
@@ -344,9 +371,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         } else if (msg.method() == HttpMethod.PUT) {
             ///Create or update newPoint on server
             handlePointPut(ctx, msg, keepAlive);
-        }
-        else
-        {
+        } else {
             responseNotSupportAndClose(ctx);
         }
 
@@ -357,10 +382,11 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
 
     public void handlePoint(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
         if (logger.isDebugEnabled()) {
-            logger.debug("handlePoint.start: keepAlive={}, remote={}, method={}"
+            logger.debug("handlePoint.start: keepAlive={}, remote={}, method={}, uri={}"
                     , keepAlive
                     , ctx.channel().remoteAddress()
-                    , msg.method());
+                    , msg.method()
+                    , msg.uri());
         }
 
         if (msg.method() == HttpMethod.GET) {
@@ -368,10 +394,12 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         } else if (msg.method() == HttpMethod.PUT) {
             ///Create or update newPoint on server
             handlePointPut(ctx, msg, keepAlive);
-
-        }
-        else
-        {
+        } else {
+            logger.error("handlePoint.NotSupportedRequest: remote={}, uri={}, method={}"
+                    , ctx.channel().remoteAddress().toString()
+                    , msg.uri()
+                    , msg.method()
+            );
             responseNotSupportAndClose(ctx);
         }
 
@@ -379,6 +407,19 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
             logger.debug("handlePoint.finish: keepAlive={}, remote={}", keepAlive, ctx.channel().remoteAddress());
         }
     }
+
+
+    public void logDebugJedisPool(String context) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("jedisPool: context={}, jedisPoolActive={}, jedisPoolIdle={}, jedisPoolWaiter={}"
+                    , context
+                    , jedisPool.getNumActive()
+                    , jedisPool.getNumIdle()
+                    , jedisPool.getNumWaiters()
+            );
+        }
+    }
+
     public void handlePointGet(ChannelHandlerContext ctx, FullHttpRequest msg, boolean keepAlive) {
         boolean validRequest = false;
 
@@ -388,11 +429,9 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         ///Get username
         QueryStringDecoder decoder = new QueryStringDecoder(msg.uri());
         String username = null;
-        if(decoder.parameters().containsKey(RESPONSE_KEY_USERNAME))
-        {
+        if (decoder.parameters().containsKey(RESPONSE_KEY_USERNAME)) {
             List<String> usernames = decoder.parameters().get(RESPONSE_KEY_USERNAME);
-            if(usernames.size()>0)
-            {
+            if (usernames.size() > 0) {
                 username = usernames.get(0);
             }
         }
@@ -410,33 +449,44 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
         }
 
         if (validRequest) {
+            logDebugJedisPool("beforeGet");
             ///Query by redis pipeline for user newPoint
-            Jedis jedis = this.jedisPool.getResource();
-            Pipeline pipeline = jedis.pipelined();
-            Response<Double> currentPointResponse = pipeline.zscore(this.leaderboardKey, username);
-            Response<Long> currentRankResponse = pipeline.zrank(this.leaderboardKey, username);
-            pipeline.sync();
-            jedis.close();
+                try (Jedis jedis = this.jedisPool.getResource()) {
+                logDebugJedisPool("afterGet");
+                Pipeline pipeline = jedis.pipelined();
+                Response<Double> currentPointResponse = pipeline.zscore(this.leaderboardKey, username);
+                Response<Long> currentRankResponse = pipeline.zrank(this.leaderboardKey, username);
+                pipeline.sync();
 
-            ///Prepare response
-            LeaderboardPointResponse resp = LeaderboardMessageFactory.createLeaderboardPointResponse();
-            resp.setSuccess(true);
-            resp.setUsername(username);
-            resp.setCurrentPoint(currentPointResponse.get().longValue());
-            resp.setCurrentRank(redisRankToUserRank(currentRankResponse.get().longValue()));
+                ///Prepare response
+                LeaderboardPointResponse resp = LeaderboardMessageFactory.createLeaderboardPointResponse();
+                resp.setSuccess(true);
+                resp.setUsername(username);
+                resp.setCurrentPoint(currentPointResponse.get().longValue());
+                resp.setCurrentRank(redisRankToUserRank(currentRankResponse.get().longValue()));
 
-            logger.info("handlePointGET: SUCCESS");
-            responseJson(ctx, keepAlive, resp);
+                logger.info("handlePointGET: SUCCESS, ");
+                responseJson(ctx, keepAlive, resp);
+            } catch (Exception ex) {
+                logger.error("pointGET.exception, jedisPoolActive={}, jedisPoolIdle={}, jedisPoolWaiter={}, {}"
+                        , jedisPool.getNumActive()
+                        , jedisPool.getNumIdle()
+                        , jedisPool.getNumWaiters()
+                        , ex);
+                responseInternalError(ctx);
+            }
+
 
         } else {
             responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
             logger.info("handlePointGET: invalidRequest");
         }
     }
-    public static int redisRankToUserRank(long value)
-    {
-        return (int)value+1;
+
+    public static int redisRankToUserRank(long value) {
+        return (int) value + 1;
     }
+
     /**
      * Handler for /point PUT endpoint
      * Create or update user point to leaderboard
@@ -471,35 +521,39 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
 
         if (validRequest) {
             ///Prepare jedis
-            Jedis jedis = this.jedisPool.getResource();
-            ///Query by pipeline
-            Pipeline pipeline = jedis.pipelined();
-            Response<Long> totalRank=pipeline.zadd(this.leaderboardKey, request.newPoint, request.username);
-            Response<Double> currentPointResponse = pipeline.zscore(this.leaderboardKey, request.username);
-            Response<Long> currentRankResponse = pipeline.zrank(this.leaderboardKey, request.username);
-            pipeline.hincrBy(this.leaderboardCounterKey, request.username, 1);
+            try (Jedis jedis = this.jedisPool.getResource()) {
+                ///Query by pipeline
+                Pipeline pipeline = jedis.pipelined();
+                Response<Long> totalRank = pipeline.zadd(this.leaderboardKey, request.newPoint, request.username);
+                Response<Double> currentPointResponse = pipeline.zscore(this.leaderboardKey, request.username);
+                Response<Long> currentRankResponse = pipeline.zrank(this.leaderboardKey, request.username);
+                pipeline.hincrBy(this.leaderboardCounterKey, request.username, 1);
 
-            pipeline.close();
-            pipeline.sync();
-            jedis.close();
+                pipeline.close();
+                pipeline.sync();
+                jedis.close();
 
-            ///Prepare response
-            LeaderboardPointResponse resp = LeaderboardMessageFactory.createLeaderboardPointResponse();
-            resp.setSuccess(true);
-            resp.setUsername(request.username);
-            resp.setCurrentPoint(currentPointResponse.get().longValue());
-            resp.setCurrentRank(redisRankToUserRank(currentRankResponse.get().longValue()));
+                ///Prepare response
+                LeaderboardPointResponse resp = LeaderboardMessageFactory.createLeaderboardPointResponse();
+                resp.setSuccess(true);
+                resp.setUsername(request.username);
+                resp.setCurrentPoint(currentPointResponse.get().longValue());
+                resp.setCurrentRank(redisRankToUserRank(currentRankResponse.get().longValue()));
 
-            ///Response client
-            responseJson(ctx, keepAlive, resp);
+                ///Response client
+                responseJson(ctx, keepAlive, resp);
 
-            ///Notify service that new point updated
-            this.owner.onHandleNewPointUpdated(request.username, resp.getCurrentPoint(), resp.getCurrentRank());
+                ///Notify service that new point updated
+                this.owner.onHandleNewPointUpdated(request.username, resp.getCurrentPoint(), resp.getCurrentRank());
+                logger.info("handlePointPut: SUCCESS, ownerUser={},newPoint={}, totalRank={}", request.username, request.newPoint, totalRank.get());
+            } catch (Exception ex) {
+                responseInternalError(ctx);
+                logger.error("handlePointPut: Exceptino", ex);
+            }
 
-            logger.info("handlePointPut: SUCCESS, ownerUser={},newPoint={}, totalRank={}", request.username, request.newPoint, totalRank.get());
         } else {
             responseBadRequestAndClose(ctx, DEFAULT_BAD_REQUEST_MESSAGE);
-            ///logger.info("handlePointGet.GET: invalidRequest");
+            logger.debug("handlePointGet.GET: invalidRequest, content={}, remote={}", content, ctx != null ? ctx.channel().remoteAddress() : EMPTY_STRING);
         }
 
         if (logger.isDebugEnabled()) {
@@ -511,8 +565,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
      * Return content for valid api request as json.
      * Aware of client keep-alive.
      */
-    public void responseJson(ChannelHandlerContext ctx, boolean keepAlive, Object content)
-    {
+    public void responseJson(ChannelHandlerContext ctx, boolean keepAlive, Object content) {
         ByteBuf buf = ctx.alloc().buffer();
         String json = gsonParser.toJson(content);
         buf.writeBytes(json.getBytes(DEFAULT_CHARSET));
@@ -549,8 +602,7 @@ public class LeaderboardServiceHandler extends SimpleChannelInboundHandler<FullH
 
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         logger.info("channelInactive: remote={}", ctx.channel().remoteAddress());
-        if(this.ownerUser !=null && !ownerUser.isEmpty())
-        {
+        if (this.ownerUser != null && !ownerUser.isEmpty()) {
             this.owner.removeUser(this.ownerUser);
         }
     }

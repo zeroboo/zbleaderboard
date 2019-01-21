@@ -1,5 +1,7 @@
 package com.zboo.leaderboard;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import redis.clients.jedis.JedisPoolConfig;
 /**
@@ -8,67 +10,105 @@ import redis.clients.jedis.JedisPoolConfig;
 
 public class LeaderboardServiceConfig {
     public static final String EMPTY_STRING = "";
-    public static final int NETTY_WORKER_THREAD = 8;
-    public static final String DEFAULT_LEADERBOARD_KEY = "zbleaderboard";
-    public static final String DEFAULT_LEADERBOARD_UPDATE_COUNTER = "zbleaderboard_update_counter";
+
+    public static final String DEFAULT_REDIS_KEY_LEADERBOARD = "zbleaderboard";
+    public static final String DEFAULT_REDIS_KEY_LEADERBOARD_UPDATE = "zbleaderboard_update_counter";
     public static final int DEFAULT_REDIS_PORT = 6379;
-    public static final int DEFAULT_API_PORT = 8080;
+    public static final int DEFAULT_API_USER_PORT = 8080;
+    public static final int DEFAULT_API_ADMIN_PORT = 8081;
     public static final String DEFAULT_REDIS_PASSWORD = "";
     public static final int DEFAULT_REDIS_TIMEOUT_SECOND = 30;
+    public static final int DEFAULT_NETTY_USER_WORKER_THREAD = 8;
+    public static final int DEFAULT_NETTY_ADMIN_WORKER_THREAD = 1;
+
     /***
-     * Api endpoint's host
+     * Host of api user
      */
-    String apiHost;
+    String apiUserHost = EMPTY_STRING;
     /***
-     * Api endpoint's port
+     * Port of api user
      */
-    int apiPort;
+    int apiUserPort;
+
 
     /**
-     * Workers thread of netty.
+     * User ssl for User admin?
+     */
+    boolean apiUserSSL;
+
+    /**
+     * Workers thread of netty, used for users's api.
      * Default is 8
      * */
-    int nettyWorkerThread;
+    int apiUserNettyWorkerThread;
+    /**
+     * Workers thread of netty, used for admin's api.
+     * Default is 1
+     * */
+    int apiAdminNettyWorkerThread;
+
+    /*
+    * Host of api user
+    */
+    String apiAdminHost = EMPTY_STRING;
+    /***
+     * Port of api user
+     */
+    int apiAdminPort;
+
+    /**
+     * User ssl for api admin?
+     * */
+    boolean apiAdminSSL;
 
     ///For redis
     String redisHost;
     int redisPort = 6379;
+    boolean redisSSL;
     String redisPassword;
     int redisTimeoutSecond;
 
     String redisLeaderboardKey;
     String redisLeaderboardUpdateCounterKey;
-    boolean ssl = false;
     JedisPoolConfig jedisPool;
 
 
+    public LeaderboardServiceConfig(String apiUserHost, int apiUserPort, boolean apiUserSSL, int apiUserNettyWorkerThread
+            , String apiAdminHost, int apiAdminPort, boolean apiAdminSSL, int apiAdminNettyWorkerThread
+            , String redisHost, int redisPort, boolean redisSSL, String redisPassword, int redisTimeoutSecond
+            , JedisPoolConfig jedisPool
+            , String redisLeaderboardKey, String redisLeaderboardUpdateCounterKey
+            ) {
+        this.apiUserHost = apiUserHost;
+        this.apiUserPort = apiUserPort;
+        this.apiUserSSL = apiUserSSL;
+        this.apiUserNettyWorkerThread = apiUserNettyWorkerThread;
+        this.apiAdminNettyWorkerThread = apiAdminNettyWorkerThread;
+        this.apiAdminHost = apiAdminHost;
+        this.apiAdminPort = apiAdminPort;
+        this.apiAdminSSL = apiAdminSSL;
+        this.redisHost = redisHost;
+        this.redisPort = redisPort;
+        this.redisSSL = redisSSL;
+        this.redisPassword = redisPassword;
+        this.redisTimeoutSecond = redisTimeoutSecond;
+        this.jedisPool = jedisPool;
+
+        this.redisLeaderboardKey = redisLeaderboardKey;
+        this.redisLeaderboardUpdateCounterKey = redisLeaderboardUpdateCounterKey;
+    }
 
     public LeaderboardServiceConfig()
     {
-        this(EMPTY_STRING, DEFAULT_API_PORT, EMPTY_STRING, DEFAULT_REDIS_PORT, DEFAULT_REDIS_PASSWORD, DEFAULT_REDIS_TIMEOUT_SECOND, false);
+        createDefaultConfig();
     }
 
-    public LeaderboardServiceConfig(String apiHost, int apiPort, String redisHost, int redisPort, String redisPassword, int redisTimeoutSecond, boolean ssl) {
-        this.apiHost = apiHost;
-        this.apiPort = apiPort;
-        this.redisHost = redisHost;
-        this.redisPort = redisPort;
-        this.jedisPool = new JedisPoolConfig();
-        this.redisPassword = redisPassword;
-        this.redisTimeoutSecond = redisTimeoutSecond;
-
-        this.ssl = ssl;
-        this.nettyWorkerThread = NETTY_WORKER_THREAD;
-        this.redisLeaderboardKey = DEFAULT_LEADERBOARD_KEY;
-        this.redisLeaderboardUpdateCounterKey = DEFAULT_LEADERBOARD_UPDATE_COUNTER;
+    public String getApiUserHost() {
+        return apiUserHost;
     }
 
-    public String getApiHost() {
-        return apiHost;
-    }
-
-    public int getApiPort() {
-        return apiPort;
+    public int getApiUserPort() {
+        return apiUserPort;
     }
 
     public String getRedisHost() {
@@ -77,18 +117,18 @@ public class LeaderboardServiceConfig {
 
     public static LeaderboardServiceConfig createDefaultConfig()
     {
-        LeaderboardServiceConfig config = new LeaderboardServiceConfig("127.0.0.1", DEFAULT_API_PORT
-                , "127.0.0.1", DEFAULT_REDIS_PORT, DEFAULT_REDIS_PASSWORD, DEFAULT_REDIS_TIMEOUT_SECOND
-                , false);
+        JedisPoolConfig defaultJedisPool = new JedisPoolConfig();
+
+        LeaderboardServiceConfig config = new LeaderboardServiceConfig("127.0.0.1", DEFAULT_API_USER_PORT, false, DEFAULT_NETTY_USER_WORKER_THREAD
+                , "127.0.0.1", DEFAULT_API_ADMIN_PORT, false, DEFAULT_NETTY_ADMIN_WORKER_THREAD
+                , "127.0.0.1", DEFAULT_REDIS_PORT, false, DEFAULT_REDIS_PASSWORD, DEFAULT_REDIS_TIMEOUT_SECOND
+                , defaultJedisPool, DEFAULT_REDIS_KEY_LEADERBOARD, DEFAULT_REDIS_KEY_LEADERBOARD_UPDATE);
+
         return config;
     }
 
-    public boolean hasSSL() {
-        return ssl;
-    }
-
-    public int getNettyWorkerThread() {
-        return nettyWorkerThread;
+    public int getApiUserNettyWorkerThread() {
+        return apiUserNettyWorkerThread;
     }
 
     public GenericObjectPoolConfig getJedisPool() {
@@ -99,12 +139,12 @@ public class LeaderboardServiceConfig {
         return redisLeaderboardKey;
     }
 
-    public void setApiHost(String apiHost) {
-        this.apiHost = apiHost;
+    public void setApiUserHost(String apiUserHost) {
+        this.apiUserHost = apiUserHost;
     }
 
-    public void setApiPort(int apiPort) {
-        this.apiPort = apiPort;
+    public void setApiUserPort(int apiUserPort) {
+        this.apiUserPort = apiUserPort;
     }
 
     public void setRedisLeaderboardKey(String redisLeaderboardKey) {
@@ -131,7 +171,34 @@ public class LeaderboardServiceConfig {
         return redisTimeoutSecond;
     }
 
-    public boolean isSsl() {
-        return ssl;
+    public boolean hasApiUserSSL() {
+        return apiUserSSL;
+    }
+
+    public int getApiAdminNettyWorkerThread() {
+        return apiAdminNettyWorkerThread;
+    }
+
+    public String getApiAdminHost() {
+        return apiAdminHost;
+    }
+
+    public int getApiAdminPort() {
+        return apiAdminPort;
+    }
+
+    public boolean isApiAdminSSL() {
+        return apiAdminSSL;
+    }
+
+    public boolean isRedisSSL() {
+        return redisSSL;
+    }
+
+
+    public static void main(String[] args)
+    {
+        Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
+        System.out.println("Default Config: " + (gson.toJson(createDefaultConfig())));
     }
 }
