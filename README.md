@@ -25,8 +25,8 @@ Edit config.json file for service endpoint and Redis connection.
 Below is default config:
 ```json
 {
-  "apiHost": "127.0.0.1",
-  "apiPort": 8080,
+  "apiUserHost": "127.0.0.1",
+  "apiUserPort": 8080,
   "nettyWorkerThread": 8,
   "redisHost": "127.0.0.1",
   "redisPort": 6379,
