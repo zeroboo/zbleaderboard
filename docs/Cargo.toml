@@ -1,0 +1,8 @@
+[package]
+name = "svgbob"
+version = "0.1.0"
+authors = ["zerobboo"]
+edition = "2018"
+
+[dependencies]
+svgblob_cli = "0.3.2"

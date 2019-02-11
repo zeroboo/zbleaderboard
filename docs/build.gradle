@@ -13,7 +13,7 @@ plugins {
 subprojects {
     version = '1.0'
 }
-
+project.name="zbleaderboard-document"
 dependencies {
   rust {  
     compile 'svgblob_cli:0.3.2' 
@@ -29,17 +29,35 @@ dependencies {
     build 'svgblob_cli:0.3.2' 
 
     build { 
+	
     }
   }
 }
 
+/*
+cargoManifest {
+  manifest.packageInf {
+    name 'zbleaderboard-document' 
+    version '0.0.1'
+    authors = [ 'zeroboo' ] 
+	dependencies = ['svgblob_cli:0.3.2']
+  }
+}
+*/
+cargoManifest {
+  manifest.packageInf {
+    name 'zbleaderboard-document' 
+    version '0.0.1'
+    authors = [ 'zeroboo' ] 
+  }
+}
 rust {
   executable version : '1.2.3' 
   executable searchPath() 
 
   abiToolsSearchPath = [ '/bin', '/usr/bin' ] 
   abiToolsSearchPath 'bin', '/usr/bin' 
-  
+  ///cargoToml './Cargo.toml'
 }
 //apply plugin: "org.ysb33r.rust.exe"
 //apply plugin: "org.ysb33r.rust.base"
@@ -51,6 +69,7 @@ task rustCheck() {
     project.tasks.collect { task -> println("task="+task+" dependsOn="+task.dependsOn) }
 	}
 }
+
 
 task makeDiagram(type:Exec) {
   workingDir './'
