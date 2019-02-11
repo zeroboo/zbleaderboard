@@ -1,0 +1,58 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    
+    dependencies {
+        classpath "gradle.plugin.org.ysb33r.gradle:rust-gradle-plugin:0.2"
+    }
+}
+
+plugins {
+	id "maven"
+	id "java"
+    id "org.ysb33r.rust.base" version "0.2"
+    id "org.ysb33r.rust.exe" version "0.2"
+    
+}
+
+group = 'com.zboo'
+version = '1.0.0'
+
+description = """zbleaderboard"""
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+tasks.withType(JavaCompile) {
+	options.encoding = 'UTF-8'
+}
+
+repositories {
+	jcenter()
+    maven { url "http://repo.maven.apache.org/maven2" }
+	
+}
+dependencies {
+    compile group: 'io.netty', name: 'netty-all', version:'4.1.32.Final'
+    compile group: 'ch.qos.logback', name: 'logback-classic', version:'1.1.7'
+    compile group: 'ch.qos.logback', name: 'logback-core', version:'1.1.7'
+    compile group: 'org.slf4j', name: 'slf4j-api', version:'1.7.21'
+    compile group: 'com.google.code.gson', name: 'gson', version:'2.8.5'
+    compile group: 'redis.clients', name: 'jedis', version:'3.0.0'
+    compile group: 'com.auth0', name: 'java-jwt', version:'3.5.0'
+    testCompile group: 'junit', name: 'junit', version:'4.11'
+	
+}
+
+//Build doc
+task buildDocument() {
+    apply plugin: "org.ysb33r.rust.exe"
+
+    doLast{
+        
+    }
+    println "BuildDocument done!"
+}
+
