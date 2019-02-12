@@ -1,0 +1,15 @@
+warning: unused manifest key: bin.0.svgbob
+    Updating crates.io index
+   Compiling winapi v0.3.6
+   Compiling unicode-width v0.1.5
+   Compiling pom v1.1.0
+   Compiling bitflags v1.0.4
+   Compiling vec_map v0.8.1
+   Compiling strsim v0.7.0
+   Compiling svg v0.5.12
+   Compiling textwrap v0.10.0
+   Compiling svgbob v0.4.1
+   Compiling atty v0.2.11
+   Compiling clap v2.32.0
+   Compiling docs v0.1.0 (D:\projects\leaderboard\zbleaderboard\docs\build\rust-project)
+    Finished dev [unoptimized + debuginfo] target(s) in 15.08s

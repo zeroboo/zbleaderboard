@@ -2,22 +2,18 @@
 name = "docs"
 version = "0.1.0"
 authors = ["zerobboo"]
-edition = "2018"
+
 
 [dependencies]
-svgbob = "0.4.1"
-clap = "2.16"
+svgbob_cli = "0.3.2"
 svg = "0.5"
-
-
-[[bin]]
-name = "svgbob"
+clap = "2.16"
 svgbob = "0.4.1"
-path = "./src/main.rs"
-
 
 [dev-dependencies]
+svgbob_cli = "0.3.2"
 handlebars = "0.21"
 
-
+[build-dependencies]
+svgbob_cli = "0.3.2"
 

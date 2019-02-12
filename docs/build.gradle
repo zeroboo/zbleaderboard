@@ -13,52 +13,25 @@ plugins {
 subprojects {
     version = '1.0'
 }
-project.name="zbleaderboard-document"
+///project.name="zbleaderboard-document"
 dependencies {
   rust {  
-    compile 'svgblob_cli:0.3.2' 
-
-    compile { 
-    }
-
-    test 'svgblob_cli:0.3.2' 
-
-    test { 
-    }
-
-    build 'svgblob_cli:0.3.2' 
-
-    build { 
-	
-    }
+    compile 'svgbob_cli:0.3.2' 
+    test 'svgbob_cli:0.3.2' 
+    build 'svgbob_cli:0.3.2' 
   }
 }
 
-/*
-cargoManifest {
-  manifest.packageInf {
-    name 'zbleaderboard-document' 
-    version '0.0.1'
-    authors = [ 'zeroboo' ] 
-	dependencies = ['svgblob_cli:0.3.2']
-  }
-}
-*/
-cargoManifest {
-  manifest.packageInf {
-    name 'zbleaderboard-document' 
-    version '0.0.1'
-    authors = [ 'zeroboo' ] 
-  }
-}
+
 rust {
   executable version : '1.2.3' 
   executable searchPath() 
 
   abiToolsSearchPath = [ '/bin', '/usr/bin' ] 
   abiToolsSearchPath 'bin', '/usr/bin' 
-  ///cargoToml './Cargo.toml'
+  cargoToml './Cargo.toml'
 }
+
 //apply plugin: "org.ysb33r.rust.exe"
 //apply plugin: "org.ysb33r.rust.base"
 ///task buildDocument(type: org.ysb33r.gradle.rust.tasks.RustApplicationExec) {
@@ -71,13 +44,13 @@ task rustCheck() {
 }
 
 
-task makeDiagram(type:Exec) {
+task makeDiagram(type:Exec, dependsOn: ':build') {
   workingDir './'
   
   //on windows:
-  ///executable 'start'
-  ///args 'svgbob ./src/bob/overview.bob -o overview.svg'
-  commandLine 'cmd','/c', 'svgbob ./src/bob/overview.bob -o overview.svg'
+  executable './build/rust-project/target/debug/docs'
+  args './src/bob/overview.bob', '-o overview.svg'
+  ///commandLine 'cmd','/c', 'svgbob ./src/bob/overview.bob -o overview.svg'
 
   //store the output instead of printing to the console:
   standardOutput = new ByteArrayOutputStream()
